@@ -33,7 +33,7 @@
     --radius-md: 6px;
     --radius-lg: 8px;
 
-    --sidebar-icon-width: 44px;
+    --sidebar-icon-width: 36px;
 
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
@@ -167,8 +167,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border: none;
     border-radius: var(--radius-md);
     background: transparent;
@@ -187,8 +187,8 @@ body {
 }
 
 .sidebar-icon {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
 }
 
 /* ── Sidebar Panel Wrapper ──────────────────────────────── */
