@@ -15,11 +15,18 @@ import { promisify } from 'util'
 const execAsync = promisify(execFile)
 
 export function registerSubprocessHandlers(): void {
-    // List available pi models
+    // List available pi models (pi writes to stderr)
     ipcMain.handle('pi:list-models', async () => {
         try {
-            const { stdout } = await execAsync('pi', ['--list-models'], { shell: true, timeout: 10000 })
-            const lines = stdout.trim().split('\n').slice(1) // skip header
+            let output: string
+            try {
+                const result = await execAsync('pi', ['--list-models'], { timeout: 10000 })
+                output = result.stdout || result.stderr
+            } catch (err: any) {
+                // execFile may "fail" with exit code but still have useful stderr
+                output = err.stdout || err.stderr || ''
+            }
+            const lines = output.trim().split('\n').slice(1) // skip header
             return lines.filter(Boolean).map((line) => {
                 const parts = line.trim().split(/\s{2,}/)
                 return {
