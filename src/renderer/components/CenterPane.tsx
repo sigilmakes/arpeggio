@@ -4,7 +4,12 @@ import { useRegistry } from '../context/ExtensionContext'
 import { TabBar } from './TabBar'
 import type { ExtensionRegistry } from '../core/registry'
 
-export function CenterPane(): React.ReactElement {
+interface CenterPaneProps {
+    sidebarOpen: boolean
+    onToggleSidebar: () => void
+}
+
+export function CenterPane({ sidebarOpen, onToggleSidebar }: CenterPaneProps): React.ReactElement {
     const { activeWorkspace, openTabs, activeTabId, setActiveTab, closeTab } = useWorkspace()
     const registry = useRegistry()
 
@@ -17,6 +22,8 @@ export function CenterPane(): React.ReactElement {
                 activeTabId={activeTabId}
                 onSelectTab={setActiveTab}
                 onCloseTab={closeTab}
+                sidebarOpen={sidebarOpen}
+                onToggleSidebar={onToggleSidebar}
             />
 
             {activeTab ? (
@@ -48,12 +55,10 @@ function FileViewer({ path, registry }: FileViewerProps): React.ReactElement {
     const [content, setContent] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
 
-    // Check if this is a binary file type that doesn't need text content
     const isBinary = /\.(png|jpg|jpeg|gif|webp|bmp|ico|pdf)$/i.test(path)
 
     useEffect(() => {
         if (isBinary) {
-            // Binary files don't need text content — pass empty string
             setContent('')
             return
         }
@@ -93,14 +98,12 @@ function FileViewer({ path, registry }: FileViewerProps): React.ReactElement {
         )
     }
 
-    // Find a registered renderer
     const rendererEntry = registry.getFileRenderer(path)
     if (rendererEntry) {
         const Renderer = rendererEntry.component
         return <Renderer path={path} content={content} onSave={handleSave} />
     }
 
-    // Fallback: plaintext
     return (
         <div className="plaintext-renderer">
             <div className="plaintext-header">

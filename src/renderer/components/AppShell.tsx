@@ -11,21 +11,26 @@ const DEFAULT_LEFT_WIDTH = 260
 
 export function AppShell(): React.ReactElement {
     const registry = useRegistry()
-    const [activeLeftPanel, setActiveLeftPanel] = useState<string>('file-browser')
-    const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
+    const [activePanel, setActivePanel] = useState<string>('file-browser')
+    const [sidebarOpen, setSidebarOpen] = useState(true)
     const [settingsOpen, setSettingsOpen] = useState(false)
-    const [leftWidth, setLeftWidth] = useState(DEFAULT_LEFT_WIDTH)
+    const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_LEFT_WIDTH)
 
-    const leftPanels = registry.getSidebarPanels('left')
+    const panels = registry.getSidebarPanels('left')
 
     const openSettings = useCallback(() => setSettingsOpen(true), [])
     const closeSettings = useCallback(() => setSettingsOpen(false), [])
+    const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
 
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === ',') {
                 e.preventDefault()
                 setSettingsOpen((prev) => !prev)
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                e.preventDefault()
+                setSidebarOpen((prev) => !prev)
             }
         }
         window.addEventListener('keydown', handler)
@@ -38,33 +43,33 @@ export function AppShell(): React.ReactElement {
             { description: 'Open settings', handler: openSettings },
             'arpeggio.core'
         )
-    }, [registry, openSettings])
+        registry.registerCommand(
+            'toggle-sidebar',
+            { description: 'Toggle sidebar', handler: toggleSidebar },
+            'arpeggio.core'
+        )
+    }, [registry, openSettings, toggleSidebar])
 
-    const handleLeftResize = useCallback((delta: number) => {
-        setLeftWidth((w) => Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, w + delta)))
+    const handleResize = useCallback((delta: number) => {
+        setSidebarWidth((w) => Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, w + delta)))
     }, [])
 
     return (
         <div className="app-shell">
-            <Sidebar
-                position="left"
-                panels={leftPanels}
-                activePanel={activeLeftPanel}
-                panelWidth={leftWidth}
-                onPanelSelect={(id) => {
-                    if (id === activeLeftPanel) {
-                        setLeftSidebarOpen(!leftSidebarOpen)
-                    } else {
-                        setActiveLeftPanel(id)
-                        setLeftSidebarOpen(true)
-                    }
-                }}
-                isOpen={leftSidebarOpen}
-                onOpenSettings={openSettings}
-            />
-            {leftSidebarOpen && <ResizeHandle side="left" onResize={handleLeftResize} />}
+            {sidebarOpen && (
+                <>
+                    <Sidebar
+                        panels={panels}
+                        activePanel={activePanel}
+                        panelWidth={sidebarWidth}
+                        onPanelSelect={setActivePanel}
+                        onOpenSettings={openSettings}
+                    />
+                    <ResizeHandle side="left" onResize={handleResize} />
+                </>
+            )}
 
-            <CenterPane />
+            <CenterPane sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
 
             <Settings isOpen={settingsOpen} onClose={closeSettings} />
         </div>

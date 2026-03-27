@@ -33,8 +33,6 @@
     --radius-md: 6px;
     --radius-lg: 8px;
 
-    --sidebar-icon-width: 36px;
-
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 
@@ -125,80 +123,71 @@ body {
 
 .sidebar {
     display: flex;
+    flex-direction: column;
     flex-shrink: 0;
     height: 100%;
+    width: 260px;
     background: var(--bg-secondary);
 }
 
-.sidebar-left {
-    /* no border — resize handle provides the visual edge */
-}
+/* ── Sidebar Header + Panel Icons ───────────────────────── */
 
-/* ── Sidebar Icon Strip ─────────────────────────────────── */
-
-.sidebar-icons {
+.sidebar-header {
     display: flex;
-    flex-direction: column;
-    width: var(--sidebar-icon-width);
-    background: var(--bg-tertiary);
-    flex-shrink: 0;
-    border-right: 1px solid var(--border-light);
-}
-
-.sidebar-icons-top {
-    display: flex;
-    flex-direction: column;
     align-items: center;
-    padding: 10px 0;
-    gap: 4px;
-    flex: 1;
+    justify-content: space-between;
+    padding: 10px 12px 6px;
+    flex-shrink: 0;
 }
 
-.sidebar-icon-btn {
+.sidebar-header-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+
+.sidebar-panel-icons {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.sidebar-panel-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     border: none;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.1s ease;
 }
 
-.sidebar-icon-btn:hover {
+.sidebar-panel-icon:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
 }
 
-.sidebar-icon-btn.active {
+.sidebar-panel-icon.active {
     color: var(--text-primary);
 }
 
 .sidebar-icon {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
 }
 
-/* ── Sidebar Panel Wrapper ──────────────────────────────── */
-
-.sidebar-panel-wrapper {
-    display: flex;
-    flex-direction: column;
-    width: 260px;       /* default, overridden by inline style */
-    min-height: 0;
-}
+/* ── Sidebar Content ────────────────────────────────────── */
 
 .sidebar-panel-content {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-}
-
-.sidebar-closed .sidebar-panel-wrapper {
-    display: none;
 }
 
 /* ── Panel Common ───────────────────────────────────────── */
@@ -472,9 +461,34 @@ body {
 
 .tab-bar::-webkit-scrollbar { height: 0; }
 
+.tab-bar-sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    flex-shrink: 0;
+    border: none;
+    border-right: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.1s ease;
+}
+
+.tab-bar-sidebar-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.tab-bar-sidebar-toggle.active {
+    color: var(--text-secondary);
+}
+
 .tab-bar-tabs {
     display: flex;
     align-items: stretch;
+    flex: 1;
+    min-width: 0;
 }
 
 .tab-bar-tab {
