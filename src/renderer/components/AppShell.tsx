@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRegistry } from '../context/ExtensionContext'
 import { Sidebar } from './Sidebar'
 import { CenterPane } from './CenterPane'
+import { Settings } from './Settings'
 
 export function AppShell(): React.ReactElement {
     const registry = useRegistry()
@@ -9,9 +10,37 @@ export function AppShell(): React.ReactElement {
     const [activeRightPanel, setActiveRightPanel] = useState<string>('agent-manager')
     const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
     const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
+    const [settingsOpen, setSettingsOpen] = useState(false)
 
     const leftPanels = registry.getSidebarPanels('left')
     const rightPanels = registry.getSidebarPanels('right')
+
+    const openSettings = useCallback(() => setSettingsOpen(true), [])
+    const closeSettings = useCallback(() => setSettingsOpen(false), [])
+
+    // Ctrl+, to open settings (like Obsidian/VSCode)
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+                e.preventDefault()
+                setSettingsOpen((prev) => !prev)
+            }
+        }
+        window.addEventListener('keydown', handler)
+        return () => window.removeEventListener('keydown', handler)
+    }, [])
+
+    // Register the settings command so extensions can open it
+    useEffect(() => {
+        registry.registerCommand(
+            'open-settings',
+            {
+                description: 'Open settings',
+                handler: openSettings
+            },
+            'arpeggio.core'
+        )
+    }, [registry, openSettings])
 
     return (
         <div className="app-shell">
@@ -49,6 +78,9 @@ export function AppShell(): React.ReactElement {
                 }}
                 isOpen={rightSidebarOpen}
             />
+
+            {/* Settings modal */}
+            <Settings isOpen={settingsOpen} onClose={closeSettings} />
         </div>
     )
 }

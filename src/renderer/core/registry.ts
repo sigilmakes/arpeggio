@@ -70,6 +70,20 @@ export interface CommandEntry {
     extensionId: string
 }
 
+export interface SettingsTabEntry {
+    id: string
+    label: string
+    icon?: ComponentType<{ className?: string }>
+    component: ComponentType<SettingsTabProps>
+    order: number
+    extensionId: string
+}
+
+export interface SettingsTabProps {
+    getSetting: <T>(key: string) => T | undefined
+    setSetting: <T>(key: string, value: T) => void
+}
+
 // ── Extension Registry ─────────────────────────────────────
 
 /**
@@ -83,6 +97,7 @@ export class ExtensionRegistry {
     private sidebarPanels = new Map<string, SidebarPanelEntry>()
     private views = new Map<string, ViewEntry>()
     private commands = new Map<string, CommandEntry>()
+    private settingsTabs = new Map<string, SettingsTabEntry>()
 
     // ── File Renderers ─────────────────────────────────────
 
@@ -211,6 +226,24 @@ export class ExtensionRegistry {
         return [...this.commands.values()]
     }
 
+    // ── Settings Tabs ────────────────────────────────────────
+
+    registerSettingsTab(
+        id: string,
+        tab: Omit<SettingsTabEntry, 'id' | 'extensionId'>,
+        extensionId: string
+    ): void {
+        this.settingsTabs.set(id, { ...tab, id, extensionId })
+    }
+
+    getSettingsTab(id: string): SettingsTabEntry | undefined {
+        return this.settingsTabs.get(id)
+    }
+
+    getAllSettingsTabs(): SettingsTabEntry[] {
+        return [...this.settingsTabs.values()].sort((a, b) => a.order - b.order)
+    }
+
     // ── Utilities ──────────────────────────────────────────
 
     clear(): void {
@@ -220,6 +253,7 @@ export class ExtensionRegistry {
         this.sidebarPanels.clear()
         this.views.clear()
         this.commands.clear()
+        this.settingsTabs.clear()
     }
 
     stats(): Record<string, number> {
@@ -229,7 +263,8 @@ export class ExtensionRegistry {
             agentTemplates: this.agentTemplates.size,
             sidebarPanels: this.sidebarPanels.size,
             views: this.views.size,
-            commands: this.commands.size
+            commands: this.commands.size,
+            settingsTabs: this.settingsTabs.size
         }
     }
 }

@@ -2,11 +2,13 @@ import React, { createContext, useContext } from 'react'
 import { ExtensionRegistry } from '../core/registry'
 import { EventBus } from '../core/event-bus'
 import { ExtensionLoader } from '../core/extension-loader'
+import { SettingsStore } from '../core/settings-store'
 
 interface ExtensionContextValue {
     registry: ExtensionRegistry
     eventBus: EventBus
     loader: ExtensionLoader
+    settingsStore: SettingsStore
     loading: boolean
     error: string | null
 }
@@ -18,13 +20,15 @@ interface ExtensionProviderProps {
     registry: ExtensionRegistry
     eventBus: EventBus
     loader: ExtensionLoader
+    settingsStore: SettingsStore
 }
 
 export function ExtensionProvider({
     children,
     registry,
     eventBus,
-    loader
+    loader,
+    settingsStore
 }: ExtensionProviderProps): React.ReactElement {
     return (
         <ExtensionContext.Provider
@@ -32,6 +36,7 @@ export function ExtensionProvider({
                 registry,
                 eventBus,
                 loader,
+                settingsStore,
                 loading: false,
                 error: null
             }}
@@ -55,4 +60,8 @@ export function useRegistry(): ExtensionRegistry {
 
 export function useEventBus(): EventBus {
     return useExtensions().eventBus
+}
+
+export function useSettingsStore(): SettingsStore {
+    return useExtensions().settingsStore
 }

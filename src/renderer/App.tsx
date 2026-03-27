@@ -5,6 +5,7 @@ import { initExtensions } from './init-extensions'
 import { ExtensionRegistry } from './core/registry'
 import { EventBus } from './core/event-bus'
 import { ExtensionLoader } from './core/extension-loader'
+import { SettingsStore } from './core/settings-store'
 
 function AppContent(): React.ReactElement {
     const { loading, error } = useExtensions()
@@ -37,16 +38,18 @@ export default function App(): React.ReactElement {
         registry: ExtensionRegistry
         eventBus: EventBus
         loader: ExtensionLoader
+        settingsStore: SettingsStore
     } | null>(null)
 
     useEffect(() => {
         const registry = new ExtensionRegistry()
         const eventBus = new EventBus()
-        const loader = new ExtensionLoader(registry, eventBus)
+        const settingsStore = new SettingsStore()
+        const loader = new ExtensionLoader(registry, eventBus, settingsStore)
 
         initExtensions(loader)
         loader.loadAll().then(() => {
-            setCtx({ registry, eventBus, loader })
+            setCtx({ registry, eventBus, loader, settingsStore })
         })
     }, [])
 
@@ -66,6 +69,7 @@ export default function App(): React.ReactElement {
             registry={ctx.registry}
             eventBus={ctx.eventBus}
             loader={ctx.loader}
+            settingsStore={ctx.settingsStore}
         >
             <AppContent />
         </ExtensionProvider>

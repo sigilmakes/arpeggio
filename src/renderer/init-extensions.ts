@@ -4,12 +4,19 @@ import { ExtensionLoader } from './core/extension-loader'
 import fileBrowserActivate from './extensions/file-browser'
 import agentManagerActivate from './extensions/agent-manager'
 import chatChannelsActivate from './extensions/chat-channels'
+import appearanceActivate from './extensions/appearance'
 
 /**
  * Register all built-in extensions.
  * These use the exact same API as user extensions.
  */
 export function initExtensions(loader: ExtensionLoader): void {
+    loader.registerBuiltIn(
+        'arpeggio.appearance',
+        'Appearance',
+        appearanceActivate
+    )
+
     loader.registerBuiltIn(
         'arpeggio.file-browser',
         'File Browser',

@@ -160,6 +160,38 @@ describe('ExtensionRegistry', () => {
         })
     })
 
+    // ── Settings Tabs ──────────────────────────────────────
+
+    describe('SettingsTabs', () => {
+        it('should register and retrieve a settings tab', () => {
+            registry.registerSettingsTab(
+                'appearance',
+                { label: 'Appearance', component: MockComponent, order: 1 },
+                'ext-1'
+            )
+            const tab = registry.getSettingsTab('appearance')
+            expect(tab).toBeDefined()
+            expect(tab!.label).toBe('Appearance')
+        })
+
+        it('should return all tabs sorted by order', () => {
+            registry.registerSettingsTab(
+                'editor',
+                { label: 'Editor', component: MockComponent, order: 20 },
+                'ext-1'
+            )
+            registry.registerSettingsTab(
+                'appearance',
+                { label: 'Appearance', component: MockComponent, order: 1 },
+                'ext-2'
+            )
+            const tabs = registry.getAllSettingsTabs()
+            expect(tabs).toHaveLength(2)
+            expect(tabs[0].id).toBe('appearance')
+            expect(tabs[1].id).toBe('editor')
+        })
+    })
+
     // ── Utilities ──────────────────────────────────────────
 
     describe('Utilities', () => {

@@ -7,9 +7,12 @@ import {
     type AgentAdapterFactory,
     type AgentTemplateEntry,
     type SidebarPanelEntry,
+    type SettingsTabEntry,
+    type SettingsTabProps,
     type ViewEntry,
     type ViewProps
 } from './registry'
+import { SettingsStore } from './settings-store'
 
 // ── ArpeggioAPI ────────────────────────────────────────────
 
@@ -55,6 +58,19 @@ export interface ArpeggioAPI {
             handler: (...args: unknown[]) => void | Promise<void>
         }
     ): void
+    registerSettingsTab(
+        id: string,
+        tab: {
+            label: string
+            icon?: ComponentType<{ className?: string }>
+            component: ComponentType<SettingsTabProps>
+            order?: number
+        }
+    ): void
+
+    // Settings storage
+    getSetting<T>(key: string): T | undefined
+    setSetting<T>(key: string, value: T): void
 
     // Events
     on<E extends ArpeggioEventName>(
@@ -79,7 +95,8 @@ export type ExtensionActivate = (app: ArpeggioAPI) => void | Promise<void>
 export function createExtensionAPI(
     extensionId: string,
     registry: ExtensionRegistry,
-    eventBus: EventBus
+    eventBus: EventBus,
+    settingsStore: SettingsStore
 ): ArpeggioAPI {
     return {
         extensionId,
@@ -120,6 +137,25 @@ export function createExtensionAPI(
 
         registerCommand(name, command) {
             registry.registerCommand(name, command, extensionId)
+        },
+
+        registerSettingsTab(id, tab) {
+            registry.registerSettingsTab(
+                id,
+                {
+                    ...tab,
+                    order: tab.order ?? 100
+                } as Omit<SettingsTabEntry, 'id' | 'extensionId'>,
+                extensionId
+            )
+        },
+
+        getSetting<T>(key: string): T | undefined {
+            return settingsStore.get<T>(extensionId, key)
+        },
+
+        setSetting<T>(key: string, value: T): void {
+            settingsStore.set(extensionId, key, value)
         },
 
         on(event, handler) {

@@ -3,6 +3,7 @@ import type { ExtensionActivate } from './extension-api'
 import { createExtensionAPI } from './extension-api'
 import { EventBus } from './event-bus'
 import { ExtensionRegistry } from './registry'
+import { SettingsStore } from './settings-store'
 
 export interface LoadedExtension {
     manifest: ExtensionManifest
@@ -25,7 +26,8 @@ export class ExtensionLoader {
 
     constructor(
         private registry: ExtensionRegistry,
-        private eventBus: EventBus
+        private eventBus: EventBus,
+        private settingsStore: SettingsStore
     ) {}
 
     /**
@@ -142,7 +144,7 @@ export class ExtensionLoader {
     }
 
     private async activateExtension(id: string, activate: ExtensionActivate): Promise<void> {
-        const api = createExtensionAPI(id, this.registry, this.eventBus)
+        const api = createExtensionAPI(id, this.registry, this.eventBus, this.settingsStore)
 
         try {
             await activate(api)

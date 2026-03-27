@@ -2,18 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ExtensionLoader } from '@renderer/core/extension-loader'
 import { ExtensionRegistry } from '@renderer/core/registry'
 import { EventBus } from '@renderer/core/event-bus'
+import { SettingsStore } from '@renderer/core/settings-store'
 
 const MockComponent = (() => null) as any
 
 describe('ExtensionLoader', () => {
     let registry: ExtensionRegistry
     let eventBus: EventBus
+    let settingsStore: SettingsStore
     let loader: ExtensionLoader
 
     beforeEach(() => {
         registry = new ExtensionRegistry()
         eventBus = new EventBus()
-        loader = new ExtensionLoader(registry, eventBus)
+        settingsStore = new SettingsStore()
+        loader = new ExtensionLoader(registry, eventBus, settingsStore)
     })
 
     it('should register and load a built-in extension', async () => {
