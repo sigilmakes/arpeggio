@@ -33,6 +33,8 @@ export interface ElectronAPI {
         log: (cwd: string, limit?: number) => Promise<{ hash: string; short: string; subject: string; author: string; date: string }[]>
         branches: (cwd: string) => Promise<{ name: string; current: boolean }[]>
         checkout: (cwd: string, branch: string) => Promise<string>
+        show: (cwd: string, hash: string) => Promise<string>
+        createBranch: (cwd: string, name: string) => Promise<string>
     }
     dialog: {
         openDirectory: () => Promise<string | null>
@@ -103,6 +105,8 @@ const api: ElectronAPI = {
         log: (cwd: string, limit?: number) => ipcRenderer.invoke('git:log', cwd, limit),
         branches: (cwd: string) => ipcRenderer.invoke('git:branches', cwd),
         checkout: (cwd: string, branch: string) => ipcRenderer.invoke('git:checkout', cwd, branch),
+        show: (cwd: string, hash: string) => ipcRenderer.invoke('git:show', cwd, hash),
+        createBranch: (cwd: string, name: string) => ipcRenderer.invoke('git:create-branch', cwd, name),
     },
     dialog: {
         openDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_DIRECTORY)

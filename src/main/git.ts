@@ -82,4 +82,12 @@ export function registerGitHandlers(): void {
     ipcMain.handle('git:checkout', async (_event, cwd: string, branch: string) => {
         return await git(cwd, 'checkout', branch)
     })
+
+    ipcMain.handle('git:show', async (_event, cwd: string, hash: string) => {
+        return await git(cwd, 'show', '--stat', '--patch', hash)
+    })
+
+    ipcMain.handle('git:create-branch', async (_event, cwd: string, name: string) => {
+        return await git(cwd, 'checkout', '-b', name)
+    })
 }

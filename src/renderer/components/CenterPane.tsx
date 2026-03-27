@@ -3,6 +3,7 @@ import { useWorkspace } from '../context/WorkspaceContext'
 import { useRegistry } from '../context/ExtensionContext'
 import { TabBar } from './TabBar'
 import { ChatView } from './ChatView'
+import { DiffView } from './DiffView'
 import type { ExtensionRegistry } from '../core/registry'
 
 interface CenterPaneProps {
@@ -16,6 +17,7 @@ export function CenterPane({ sidebarOpen, onToggleSidebar }: CenterPaneProps): R
 
     const activeTab = openTabs.find((t) => t.id === activeTabId)
     const isChat = activeTab?.path.startsWith('chat://')
+    const isDiff = activeTab?.path.startsWith('diff://')
 
     return (
         <div className="center-pane">
@@ -31,6 +33,8 @@ export function CenterPane({ sidebarOpen, onToggleSidebar }: CenterPaneProps): R
             {activeTab ? (
                 isChat ? (
                     <ChatView />
+                ) : isDiff ? (
+                    <DiffView commitHash={activeTab.path.slice(7)} />
                 ) : (
                     <FileViewer key={activeTab.path} path={activeTab.path} registry={registry} />
                 )

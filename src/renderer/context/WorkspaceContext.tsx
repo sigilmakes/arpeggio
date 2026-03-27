@@ -38,6 +38,9 @@ function tabLabelFromPath(path: string): string {
     if (path.startsWith('chat://')) {
         return '#' + path.slice(7)
     }
+    if (path.startsWith('diff://')) {
+        return '± ' + path.slice(7, 14) // short hash
+    }
     return path.split('/').pop() ?? path
 }
 

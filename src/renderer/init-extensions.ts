@@ -13,6 +13,8 @@ import codeEditorActivate from './extensions/code-editor'
 import imageViewerActivate from './extensions/image-viewer'
 import pdfViewerActivate from './extensions/pdf-viewer'
 import plaintextRendererActivate from './extensions/plaintext-renderer'
+import echoAdapterActivate from './extensions/adapters/echo'
+import stdioAdapterActivate from './extensions/adapters/stdio'
 
 /**
  * Register all built-in extensions.
@@ -38,4 +40,8 @@ export function initExtensions(loader: ExtensionLoader): void {
 
     // Plaintext fallback — loaded last
     loader.registerBuiltIn('arpeggio.plaintext-renderer', 'Plaintext', plaintextRendererActivate)
+
+    // Agent adapters
+    loader.registerBuiltIn('arpeggio.adapter-echo', 'Echo Adapter', echoAdapterActivate)
+    loader.registerBuiltIn('arpeggio.adapter-stdio', 'STDIO Adapter', stdioAdapterActivate)
 }
