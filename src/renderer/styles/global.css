@@ -1561,6 +1561,41 @@ body {
 .agent-card-header:hover .agent-card-remove { opacity: 1; }
 .agent-card-remove:hover { background: var(--bg-active); color: var(--text-primary); }
 
+.agent-card-name-input {
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 1px 4px;
+    outline: none;
+    width: 100%;
+}
+
+.agent-card-model-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 0;
+    font-size: 0.75rem;
+}
+
+.agent-card-model-select {
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    padding: 2px 4px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    outline: none;
+    max-width: 180px;
+}
+
+.agent-card-model-select:focus { border-color: var(--accent); }
+
 .agent-card-details {
     padding: 2px 14px 8px 30px;
 }
@@ -1633,6 +1668,45 @@ body {
 .agent-picker-item-check {
     color: var(--accent);
     font-size: 0.85rem;
+}
+
+.agent-picker-form {
+    padding: 8px 14px;
+}
+
+.agent-picker-field {
+    margin-bottom: 8px;
+}
+
+.agent-picker-field label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 3px;
+}
+
+.agent-picker-input,
+.agent-picker-select {
+    width: 100%;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    outline: none;
+}
+
+.agent-picker-input:focus,
+.agent-picker-select:focus { border-color: var(--accent); }
+
+.agent-picker-form-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    margin-top: 8px;
 }
 
 .agent-picker-cancel {

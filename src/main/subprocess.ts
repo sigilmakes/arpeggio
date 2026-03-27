@@ -10,7 +10,31 @@ const processes = new Map<string, ChildProcess>()
 const stdoutQueues = new Map<string, string[]>()
 const stderrQueues = new Map<string, string[]>()
 
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+const execAsync = promisify(execFile)
+
 export function registerSubprocessHandlers(): void {
+    // List available pi models
+    ipcMain.handle('pi:list-models', async () => {
+        try {
+            const { stdout } = await execAsync('pi', ['--list-models'], { shell: true, timeout: 10000 })
+            const lines = stdout.trim().split('\n').slice(1) // skip header
+            return lines.filter(Boolean).map((line) => {
+                const parts = line.trim().split(/\s{2,}/)
+                return {
+                    provider: parts[0] || '',
+                    model: parts[1] || '',
+                    context: parts[2] || '',
+                    maxOut: parts[3] || '',
+                    thinking: parts[4] === 'yes',
+                    images: parts[5] === 'yes',
+                }
+            })
+        } catch {
+            return []
+        }
+    })
     // Check if an env var is set (for credential detection)
     ipcMain.handle('env:check', (_event, varName: string) => {
         return !!process.env[varName]

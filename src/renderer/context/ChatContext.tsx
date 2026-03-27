@@ -28,6 +28,17 @@ const ChatContext = createContext<ChatContextValue | null>(null)
 // Keep adapter instances alive between messages
 const adapterCache = new Map<string, AgentAdapterInstance>()
 
+// Expose cache clearing for model changes
+if (typeof window !== 'undefined') {
+    (window as any).__adapterCacheClear = (agentId: string) => {
+        const adapter = adapterCache.get(agentId)
+        if (adapter) {
+            adapter.disconnect?.().catch(() => {})
+            adapterCache.delete(agentId)
+        }
+    }
+}
+
 export function ChatProvider({ children }: { children: React.ReactNode }): React.ReactElement {
     const { activeWorkspace } = useWorkspace()
     const registry = useRegistry()

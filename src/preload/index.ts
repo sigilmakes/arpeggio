@@ -40,6 +40,9 @@ export interface ElectronAPI {
         check: (varName: string) => Promise<boolean>
         get: (varName: string) => Promise<string | null>
     }
+    pi: {
+        listModels: () => Promise<{ provider: string; model: string; context: string; maxOut: string; thinking: boolean; images: boolean }[]>
+    }
     subprocess: {
         spawn: (id: string, command: string, args: string[], cwd?: string) => Promise<{ pid: number }>
         write: (id: string, data: string) => Promise<boolean>
@@ -142,6 +145,9 @@ const api: ElectronAPI = {
     env: {
         check: (varName: string) => ipcRenderer.invoke('env:check', varName),
         get: (varName: string) => ipcRenderer.invoke('env:get', varName),
+    },
+    pi: {
+        listModels: () => ipcRenderer.invoke('pi:list-models'),
     },
     subprocess: {
         spawn: (id: string, command: string, args: string[], cwd?: string) =>
