@@ -21,7 +21,7 @@ class AcpAdapter implements AgentAdapterInstance {
     async send(message: string): Promise<string> {
         // TODO: Send via ACP protocol
         console.log('[ACP] Send:', message.slice(0, 80))
-        return '[ACP adapter: connection not yet implemented — use Echo for testing]'
+        return '[ACP adapter: protocol not yet implemented — use Echo for testing]'
     }
 
     onMessage(handler: (message: string) => void): void {
@@ -39,11 +39,7 @@ export default function activate(app: ArpeggioAPI): void {
     app.registerAgentTemplate('claude-code', {
         displayName: 'Claude Code',
         adapter: 'acp',
-        detect: async () => {
-            // Check if claude is on PATH
-            // In renderer we can't check directly, but template is always shown
-            return true
-        },
+        detect: () => true,
         defaults: {}
     })
 

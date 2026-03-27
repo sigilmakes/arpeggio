@@ -77,7 +77,7 @@ class JsonStdioAdapter implements AgentAdapterInstance {
 
     async send(message: string): Promise<string> {
         if (!this.connected) {
-            throw new Error('Not connected')
+            await this.connect()
         }
 
         // Send as JSON line
