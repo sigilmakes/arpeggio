@@ -5,6 +5,7 @@ import fileBrowserActivate from './extensions/file-browser'
 import agentManagerActivate from './extensions/agent-manager'
 import chatChannelsActivate from './extensions/chat-channels'
 import appearanceActivate from './extensions/appearance'
+import plaintextRendererActivate from './extensions/plaintext-renderer'
 
 /**
  * Register all built-in extensions.
@@ -33,5 +34,12 @@ export function initExtensions(loader: ExtensionLoader): void {
         'arpeggio.chat-channels',
         'Chat Channels',
         chatChannelsActivate
+    )
+
+    // Plaintext renderer — fallback, loaded last so it has lowest priority
+    loader.registerBuiltIn(
+        'arpeggio.plaintext-renderer',
+        'Plaintext Renderer',
+        plaintextRendererActivate
     )
 }

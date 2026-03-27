@@ -1,6 +1,7 @@
 import React, { useEffect, useState, Component, type ErrorInfo, type ReactNode } from 'react'
 import { AppShell } from './components/AppShell'
 import { ExtensionProvider, useExtensions } from './context/ExtensionContext'
+import { WorkspaceProvider } from './context/WorkspaceContext'
 import { initExtensions } from './init-extensions'
 import { ExtensionRegistry } from './core/registry'
 import { EventBus } from './core/event-bus'
@@ -125,7 +126,9 @@ export default function App(): React.ReactElement {
                 loader={ctx.loader}
                 settingsStore={ctx.settingsStore}
             >
-                <AppContent />
+                <WorkspaceProvider>
+                    <AppContent />
+                </WorkspaceProvider>
             </ExtensionProvider>
         </ErrorBoundary>
     )

@@ -5,10 +5,26 @@
 // ── Workspace ──────────────────────────────────────────────
 
 export interface WorkspaceConfig {
+    id: string
     name: string
     projectPaths: string[]
     agents: AgentConfig[]
     channels: ChannelConfig[]
+}
+
+export interface WorkspaceState {
+    openTabs: OpenTab[]
+    activeTabId: string | null
+    leftSidebarOpen: boolean
+    rightSidebarOpen: boolean
+    activeLeftPanel: string
+    activeRightPanel: string
+}
+
+export interface OpenTab {
+    id: string
+    path: string
+    label: string
 }
 
 export interface AgentConfig {
@@ -103,15 +119,21 @@ export interface CommandDef {
 
 export const IPC_CHANNELS = {
     // Workspace
-    WORKSPACE_OPEN: 'workspace:open',
-    WORKSPACE_GET_CONFIG: 'workspace:get-config',
     WORKSPACE_LIST: 'workspace:list',
+    WORKSPACE_GET_CONFIG: 'workspace:get-config',
+    WORKSPACE_CREATE: 'workspace:create',
+    WORKSPACE_DELETE: 'workspace:delete',
+    WORKSPACE_SAVE_STATE: 'workspace:save-state',
+    WORKSPACE_LOAD_STATE: 'workspace:load-state',
 
     // File system
     FS_READ_DIR: 'fs:read-dir',
     FS_READ_FILE: 'fs:read-file',
     FS_WRITE_FILE: 'fs:write-file',
     FS_STAT: 'fs:stat',
+
+    // Dialog
+    DIALOG_OPEN_DIRECTORY: 'dialog:open-directory',
 
     // Extensions
     EXTENSION_LIST: 'extension:list',

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRegistry } from '../context/ExtensionContext'
 import { Titlebar } from './Titlebar'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { Sidebar } from './Sidebar'
 import { CenterPane } from './CenterPane'
 import { Settings } from './Settings'
@@ -19,7 +20,7 @@ export function AppShell(): React.ReactElement {
     const openSettings = useCallback(() => setSettingsOpen(true), [])
     const closeSettings = useCallback(() => setSettingsOpen(false), [])
 
-    // Ctrl+, to open settings (like Obsidian/VSCode)
+    // Ctrl+, to open settings
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === ',') {
@@ -31,14 +32,11 @@ export function AppShell(): React.ReactElement {
         return () => window.removeEventListener('keydown', handler)
     }, [])
 
-    // Register the settings command so extensions can open it
+    // Register the settings command
     useEffect(() => {
         registry.registerCommand(
             'open-settings',
-            {
-                description: 'Open settings',
-                handler: openSettings
-            },
+            { description: 'Open settings', handler: openSettings },
             'arpeggio.core'
         )
     }, [registry, openSettings])
@@ -47,6 +45,9 @@ export function AppShell(): React.ReactElement {
         <div className="app-root">
             <Titlebar />
             <div className="app-shell">
+                {/* Workspace switcher — narrow left strip like Discord/Obsidian vaults */}
+                <WorkspaceSwitcher />
+
                 {/* Left sidebar */}
                 <Sidebar
                     position="left"

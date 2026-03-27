@@ -9,8 +9,15 @@ export interface ElectronAPI {
         stat: (path: string) => Promise<FileStat>
     }
     workspace: {
-        list: () => Promise<string[]>
-        getConfig: (name: string) => Promise<unknown>
+        list: () => Promise<unknown[]>
+        getConfig: (id: string) => Promise<unknown>
+        create: (config: { id: string; name: string; projectPaths: string[] }) => Promise<unknown>
+        delete: (id: string) => Promise<boolean>
+        saveState: (id: string, state: Record<string, unknown>) => Promise<boolean>
+        loadState: (id: string) => Promise<unknown>
+    }
+    dialog: {
+        openDirectory: () => Promise<string | null>
     }
     extensions: {
         scan: (workspacePath?: string) => Promise<unknown[]>
@@ -51,7 +58,15 @@ const api: ElectronAPI = {
     },
     workspace: {
         list: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST),
-        getConfig: (name: string) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_CONFIG, name)
+        getConfig: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_CONFIG, id),
+        create: (config) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_CREATE, config),
+        delete: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_DELETE, id),
+        saveState: (id: string, state: Record<string, unknown>) =>
+            ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SAVE_STATE, id, state),
+        loadState: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LOAD_STATE, id)
+    },
+    dialog: {
+        openDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_DIRECTORY)
     },
     extensions: {
         scan: (workspacePath?: string) => ipcRenderer.invoke('extension:scan', workspacePath),

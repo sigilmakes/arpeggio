@@ -583,6 +583,403 @@ body {
     margin-top: 2px;
 }
 
+/* ── Workspace Switcher ─────────────────────────────────── */
+
+.workspace-switcher {
+    display: flex;
+    flex-direction: column;
+    width: 52px;
+    flex-shrink: 0;
+    background: var(--bg-tertiary);
+    border-right: 1px solid var(--border);
+    padding: 8px 0;
+}
+
+.workspace-switcher-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    padding: 0 6px;
+}
+
+.workspace-switcher-item {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: var(--radius-lg);
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    position: relative;
+}
+
+.workspace-switcher-item:hover {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-radius: var(--radius-md);
+}
+
+.workspace-switcher-item.active {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-radius: var(--radius-md);
+}
+
+/* Active indicator — left bar like Discord */
+.workspace-switcher-item.active::before {
+    content: '';
+    position: absolute;
+    left: -9px;
+    top: 8px;
+    width: 3px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 0 2px 2px 0;
+}
+
+.workspace-switcher-initial {
+    pointer-events: none;
+}
+
+.workspace-switcher-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 6px 0;
+    border-top: 1px solid var(--border-light);
+}
+
+.workspace-switcher-add {
+    width: 40px;
+    height: 40px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.4rem;
+    font-weight: 300;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.workspace-switcher-add:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(91, 122, 107, 0.05);
+}
+
+[data-theme='dark'] .workspace-switcher-add:hover {
+    background: rgba(127, 168, 146, 0.08);
+}
+
+/* ── Create Workspace Modal ─────────────────────────────── */
+
+.create-workspace-modal {
+    width: min(480px, 90vw);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+    padding: 24px;
+    animation: slideUp 0.2s ease;
+}
+
+.create-workspace-modal h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+}
+
+.form-field {
+    margin-bottom: 16px;
+}
+
+.form-field label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.form-field input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.form-field input:focus {
+    border-color: var(--accent);
+}
+
+.form-field input::placeholder {
+    color: var(--text-muted);
+}
+
+.form-field-row {
+    display: flex;
+    gap: 8px;
+}
+
+.form-field-path {
+    flex: 1;
+}
+
+.form-btn-primary,
+.form-btn-secondary {
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.form-btn-primary {
+    background: var(--accent);
+    color: var(--accent-text);
+    border: 1px solid var(--accent);
+}
+
+.form-btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.form-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.form-btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.form-btn-secondary:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+/* ── File Browser Tree ──────────────────────────────────── */
+
+.file-browser-tree {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.tree-node-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.85rem;
+    transition: background 0.08s ease;
+}
+
+.tree-node-row:hover {
+    background: var(--bg-hover);
+}
+
+.tree-node-icon {
+    width: 16px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.tree-node-dir .tree-node-icon {
+    font-size: 0.65rem;
+}
+
+.tree-node-name {
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree-node-dir .tree-node-name {
+    font-weight: 500;
+}
+
+.tree-node-loading {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+/* ── Tab Bar ────────────────────────────────────────────── */
+
+.tab-bar {
+    display: flex;
+    align-items: stretch;
+    height: 36px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.tab-bar::-webkit-scrollbar {
+    height: 0;
+}
+
+.tab-bar-tabs {
+    display: flex;
+    align-items: stretch;
+}
+
+.tab-bar-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border-right: 1px solid var(--border-light);
+    cursor: pointer;
+    min-width: 0;
+    max-width: 200px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    transition: background 0.1s ease;
+    white-space: nowrap;
+}
+
+.tab-bar-tab:hover {
+    background: var(--bg-hover);
+}
+
+.tab-bar-tab.active {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--accent);
+}
+
+.tab-bar-tab-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tab-bar-tab-close {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: all 0.1s ease;
+}
+
+.tab-bar-tab:hover .tab-bar-tab-close,
+.tab-bar-tab.active .tab-bar-tab-close {
+    opacity: 1;
+}
+
+.tab-bar-tab-close:hover {
+    background: var(--bg-active);
+    color: var(--text-primary);
+}
+
+/* ── Plaintext Renderer ─────────────────────────────────── */
+
+.plaintext-renderer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.plaintext-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.plaintext-filename {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.plaintext-meta {
+    color: var(--text-muted);
+}
+
+.plaintext-content {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    tab-size: 4;
+    white-space: pre;
+    margin: 0;
+}
+
+.plaintext-content code {
+    font-family: inherit;
+}
+
+/* ── File Viewer States ─────────────────────────────────── */
+
+.file-viewer-loading,
+.file-viewer-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    gap: 8px;
+}
+
+.file-viewer-error-detail {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
 /* ── Scrollbar ──────────────────────────────────────────── */
 
 ::-webkit-scrollbar {

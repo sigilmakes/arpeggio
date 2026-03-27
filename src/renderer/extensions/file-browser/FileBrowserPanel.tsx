@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { useWorkspace } from '../../context/WorkspaceContext'
 
 export function FileBrowserIcon({ className }: { className?: string }): React.ReactElement {
     return (
@@ -16,15 +17,169 @@ export function FileBrowserIcon({ className }: { className?: string }): React.Re
     )
 }
 
+interface DirEntry {
+    name: string
+    isDirectory: boolean
+    isFile: boolean
+    path: string
+}
+
 export function FileBrowserPanel(): React.ReactElement {
+    const { activeWorkspace, openFile } = useWorkspace()
+
+    if (!activeWorkspace) {
+        return (
+            <div className="file-browser-panel">
+                <div className="panel-header">
+                    <h3>Files</h3>
+                </div>
+                <div className="panel-content">
+                    <p className="panel-placeholder">Open a workspace to browse files</p>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="file-browser-panel">
             <div className="panel-header">
-                <h3>Files</h3>
+                <h3>{activeWorkspace.name}</h3>
             </div>
-            <div className="panel-content">
-                <p className="panel-placeholder">Open a workspace to browse files</p>
+            <div className="file-browser-tree">
+                {activeWorkspace.projectPaths.map((rootPath) => (
+                    <TreeNode
+                        key={rootPath}
+                        path={rootPath}
+                        name={rootPath.split('/').pop() ?? rootPath}
+                        isDirectory
+                        depth={0}
+                        defaultOpen
+                        onFileClick={openFile}
+                    />
+                ))}
             </div>
         </div>
     )
+}
+
+// ── Tree Node ──────────────────────────────────────────────
+
+interface TreeNodeProps {
+    path: string
+    name: string
+    isDirectory: boolean
+    depth: number
+    defaultOpen?: boolean
+    onFileClick: (path: string) => void
+}
+
+const HIDDEN_ENTRIES = new Set([
+    '.git',
+    'node_modules',
+    '.next',
+    '__pycache__',
+    '.DS_Store',
+    'Thumbs.db',
+    '.vscode',
+    '.idea'
+])
+
+function TreeNode({
+    path,
+    name,
+    isDirectory,
+    depth,
+    defaultOpen = false,
+    onFileClick
+}: TreeNodeProps): React.ReactElement {
+    const [open, setOpen] = useState(defaultOpen)
+    const [children, setChildren] = useState<DirEntry[] | null>(null)
+    const [loading, setLoading] = useState(false)
+
+    const loadChildren = useCallback(async () => {
+        if (!isDirectory || children !== null) return
+        setLoading(true)
+        try {
+            const entries = (await window.electron.fs.readDir(path)) as DirEntry[]
+            setChildren(entries.filter((e) => !HIDDEN_ENTRIES.has(e.name) && !e.name.startsWith('.')))
+        } catch (error) {
+            console.error(`Failed to read directory: ${path}`, error)
+            setChildren([])
+        }
+        setLoading(false)
+    }, [path, isDirectory, children])
+
+    useEffect(() => {
+        if (open && isDirectory) {
+            loadChildren()
+        }
+    }, [open, isDirectory, loadChildren])
+
+    const handleClick = () => {
+        if (isDirectory) {
+            setOpen(!open)
+        } else {
+            onFileClick(path)
+        }
+    }
+
+    const icon = isDirectory ? (open ? '▾' : '▸') : getFileIcon(name)
+
+    return (
+        <div className="tree-node">
+            <div
+                className={`tree-node-row ${isDirectory ? 'tree-node-dir' : 'tree-node-file'}`}
+                style={{ paddingLeft: `${depth * 16 + 8}px` }}
+                onClick={handleClick}
+            >
+                <span className="tree-node-icon">{icon}</span>
+                <span className="tree-node-name">{name}</span>
+            </div>
+            {open && isDirectory && (
+                <div className="tree-node-children">
+                    {loading && (
+                        <div className="tree-node-row tree-node-loading" style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}>
+                            Loading…
+                        </div>
+                    )}
+                    {children?.map((child) => (
+                        <TreeNode
+                            key={child.path}
+                            path={child.path}
+                            name={child.name}
+                            isDirectory={child.isDirectory}
+                            depth={depth + 1}
+                            onFileClick={onFileClick}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function getFileIcon(name: string): string {
+    const ext = name.split('.').pop()?.toLowerCase()
+    switch (ext) {
+        case 'ts':
+        case 'tsx':
+            return '⬡'
+        case 'js':
+        case 'jsx':
+            return '◆'
+        case 'json':
+            return '{ }'
+        case 'md':
+            return '¶'
+        case 'css':
+            return '#'
+        case 'html':
+            return '<>'
+        case 'py':
+            return '🐍'
+        case 'rs':
+            return '⚙'
+        default:
+            return '○'
+    }
 }
