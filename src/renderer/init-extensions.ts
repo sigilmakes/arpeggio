@@ -7,6 +7,7 @@ import coreExtensionsActivate from './extensions/core-extensions'
 import fileBrowserActivate from './extensions/file-browser'
 import agentManagerActivate from './extensions/agent-manager'
 import chatChannelsActivate from './extensions/chat-channels'
+import gitPanelActivate from './extensions/git-panel'
 import markdownRendererActivate from './extensions/markdown-renderer'
 import codeEditorActivate from './extensions/code-editor'
 import imageViewerActivate from './extensions/image-viewer'
@@ -27,6 +28,7 @@ export function initExtensions(loader: ExtensionLoader): void {
     loader.registerBuiltIn('arpeggio.file-browser', 'File Browser', fileBrowserActivate)
     loader.registerBuiltIn('arpeggio.agent-manager', 'Agent Manager', agentManagerActivate)
     loader.registerBuiltIn('arpeggio.chat-channels', 'Chat Channels', chatChannelsActivate)
+    loader.registerBuiltIn('arpeggio.git-panel', 'Git', gitPanelActivate)
 
     // File renderers — specific types first
     loader.registerBuiltIn('arpeggio.markdown-renderer', 'Markdown', markdownRendererActivate)

@@ -1219,6 +1219,136 @@ body {
     font-style: italic;
 }
 
+/* ── Git Panel ──────────────────────────────────────────── */
+
+.git-panel {
+    padding: 8px 0;
+}
+
+.git-branch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 14px 8px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.git-branch-icon { font-size: 0.9rem; }
+.git-branch-name { font-weight: 500; color: var(--text-primary); }
+
+.git-section { margin-bottom: 8px; }
+
+.git-section-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.git-section-count {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 0 6px;
+    font-size: 0.7rem;
+}
+
+.git-stage-all {
+    margin-left: auto;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0 4px;
+}
+.git-stage-all:hover { color: var(--accent); }
+
+.git-file {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 14px;
+    font-size: 0.82rem;
+}
+
+.git-file:hover { background: var(--bg-hover); }
+
+.git-file-status {
+    width: 14px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--accent);
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.git-file-staged .git-file-status { color: var(--accent); }
+
+.git-file-path {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+}
+
+.git-file-action {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.git-file:hover .git-file-action { opacity: 1; }
+.git-file-action:hover { background: var(--bg-active); color: var(--text-primary); }
+
+.git-commit {
+    display: flex;
+    gap: 6px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border-light);
+}
+
+.git-commit-input {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    outline: none;
+}
+.git-commit-input:focus { border-color: var(--accent); }
+
+.git-commit-btn {
+    padding: 4px 10px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: var(--accent-text);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+.git-commit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* ── Chat Channels Panel ────────────────────────────────── */
 
 .channel-list {

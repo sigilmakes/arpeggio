@@ -22,6 +22,18 @@ export interface ElectronAPI {
         appendMessage: (workspaceId: string, channelId: string, message: unknown) => Promise<boolean>
         listChannels: (workspaceId: string) => Promise<string[]>
     }
+    git: {
+        isRepo: (cwd: string) => Promise<boolean>
+        status: (cwd: string) => Promise<{ branch: string; files: { status: string; path: string }[] }>
+        diff: (cwd: string, filePath?: string) => Promise<string>
+        diffStaged: (cwd: string, filePath?: string) => Promise<string>
+        stage: (cwd: string, paths: string[]) => Promise<boolean>
+        unstage: (cwd: string, paths: string[]) => Promise<boolean>
+        commit: (cwd: string, message: string) => Promise<string>
+        log: (cwd: string, limit?: number) => Promise<{ hash: string; short: string; subject: string; author: string; date: string }[]>
+        branches: (cwd: string) => Promise<{ name: string; current: boolean }[]>
+        checkout: (cwd: string, branch: string) => Promise<string>
+    }
     dialog: {
         openDirectory: () => Promise<string | null>
     }
@@ -79,6 +91,18 @@ const api: ElectronAPI = {
             ipcRenderer.invoke(IPC_CHANNELS.CHAT_APPEND_MESSAGE, workspaceId, channelId, message),
         listChannels: (workspaceId: string) =>
             ipcRenderer.invoke(IPC_CHANNELS.CHAT_LIST_CHANNELS, workspaceId),
+    },
+    git: {
+        isRepo: (cwd: string) => ipcRenderer.invoke('git:is-repo', cwd),
+        status: (cwd: string) => ipcRenderer.invoke('git:status', cwd),
+        diff: (cwd: string, filePath?: string) => ipcRenderer.invoke('git:diff', cwd, filePath),
+        diffStaged: (cwd: string, filePath?: string) => ipcRenderer.invoke('git:diff-staged', cwd, filePath),
+        stage: (cwd: string, paths: string[]) => ipcRenderer.invoke('git:stage', cwd, paths),
+        unstage: (cwd: string, paths: string[]) => ipcRenderer.invoke('git:unstage', cwd, paths),
+        commit: (cwd: string, message: string) => ipcRenderer.invoke('git:commit', cwd, message),
+        log: (cwd: string, limit?: number) => ipcRenderer.invoke('git:log', cwd, limit),
+        branches: (cwd: string) => ipcRenderer.invoke('git:branches', cwd),
+        checkout: (cwd: string, branch: string) => ipcRenderer.invoke('git:checkout', cwd, branch),
     },
     dialog: {
         openDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_DIRECTORY)
