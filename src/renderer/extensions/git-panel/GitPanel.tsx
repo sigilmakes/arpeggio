@@ -242,20 +242,21 @@ export function GitPanel(): React.ReactElement {
                             <div className="git-section">
                                 <div className="git-section-header"><span>Local</span></div>
                                 {branches.filter((b) => !b.name.startsWith('origin/')).map((b) => (
-                                    <div
+                                    <BranchItem
                                         key={b.name}
-                                        className={`git-branch-item ${b.current ? 'current' : ''}`}
-                                        onClick={async () => {
-                                            if (!b.current && cwd) {
+                                        branch={b}
+                                        onCheckout={async () => {
+                                            if (!cwd) return
+                                            setLoading(true)
+                                            try {
                                                 await window.electron.git.checkout(cwd, b.name)
-                                                refresh()
+                                            } catch (err) {
+                                                console.error('Checkout failed:', err)
                                             }
+                                            await refresh()
+                                            setLoading(false)
                                         }}
-                                    >
-                                        <span className="git-branch-item-icon">{b.current ? '●' : '○'}</span>
-                                        <span className="git-branch-item-name">{b.name}</span>
-                                        {b.current && <span className="git-branch-item-tag">HEAD</span>}
-                                    </div>
+                                    />
                                 ))}
                             </div>
 
@@ -275,6 +276,20 @@ export function GitPanel(): React.ReactElement {
                     )}
                 </div>
             )}
+        </div>
+    )
+}
+
+function BranchItem({ branch, onCheckout }: { branch: GitBranch; onCheckout: () => void }): React.ReactElement {
+    return (
+        <div
+            className={`git-branch-item ${branch.current ? 'current' : ''}`}
+            onClick={() => { if (!branch.current) onCheckout() }}
+            title={branch.current ? 'Current branch' : `Switch to ${branch.name}`}
+        >
+            <span className="git-branch-item-icon">{branch.current ? '●' : '○'}</span>
+            <span className="git-branch-item-name">{branch.name}</span>
+            {branch.current && <span className="git-branch-item-tag">HEAD</span>}
         </div>
     )
 }

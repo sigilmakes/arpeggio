@@ -72,11 +72,15 @@ export function registerGitHandlers(): void {
     })
 
     ipcMain.handle('git:branches', async (_event, cwd: string) => {
-        const raw = await git(cwd, 'branch', '-a', '--format=%(refname:short)|%(HEAD)')
+        // Use plain `git branch -a` which prefixes current branch with '* '
+        const raw = await git(cwd, 'branch', '-a')
         return raw.split('\n').filter(Boolean).map((line) => {
-            const [name, head] = line.split('|')
-            return { name, current: head === '*' }
-        })
+            const current = line.startsWith('* ')
+            const name = line.replace(/^\*?\s+/, '').replace(/^remotes\//, '').trim()
+            // Skip detached HEAD indicators
+            if (name.includes('HEAD detached') || name.includes('->')) return null
+            return { name, current }
+        }).filter(Boolean)
     })
 
     ipcMain.handle('git:checkout', async (_event, cwd: string, branch: string) => {
