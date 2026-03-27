@@ -2,16 +2,14 @@ import React, { useRef, useEffect, useState } from 'react'
 import type { FileRendererProps } from '../../core/registry'
 import * as pdfjsLib from 'pdfjs-dist'
 
-// Point to the worker bundled with pdfjs-dist
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url
-).toString()
+// Use fake worker to avoid worker loading issues in Electron
+pdfjsLib.GlobalWorkerOptions.workerSrc = ''
 
 export function PdfViewer({ path }: FileRendererProps): React.ReactElement {
     const containerRef = useRef<HTMLDivElement>(null)
     const [pageCount, setPageCount] = useState(0)
     const [error, setError] = useState<string | null>(null)
+    const [loading, setLoading] = useState(true)
     const [scale, setScale] = useState(1.5)
     const fileName = path.split('/').pop() ?? path
 
@@ -20,12 +18,12 @@ export function PdfViewer({ path }: FileRendererProps): React.ReactElement {
         const container = containerRef.current
         container.innerHTML = ''
         setError(null)
+        setLoading(true)
 
         let cancelled = false
 
         async function render() {
             try {
-                // Read file as base64 then convert to Uint8Array
                 const base64 = await window.electron.fs.readFileBase64(path)
                 const binary = atob(base64)
                 const bytes = new Uint8Array(binary.length)
@@ -33,10 +31,17 @@ export function PdfViewer({ path }: FileRendererProps): React.ReactElement {
                     bytes[i] = binary.charCodeAt(i)
                 }
 
-                const pdf = await pdfjsLib.getDocument({ data: bytes }).promise
+                const loadingTask = pdfjsLib.getDocument({
+                    data: bytes,
+                    useWorkerFetch: false,
+                    isEvalSupported: false,
+                    useSystemFonts: true,
+                })
+                const pdf = await loadingTask.promise
                 if (cancelled) return
 
                 setPageCount(pdf.numPages)
+                setLoading(false)
 
                 for (let i = 1; i <= pdf.numPages; i++) {
                     if (cancelled) return
@@ -45,16 +50,22 @@ export function PdfViewer({ path }: FileRendererProps): React.ReactElement {
 
                     const canvas = document.createElement('canvas')
                     canvas.className = 'pdf-page-canvas'
-                    canvas.width = viewport.width
-                    canvas.height = viewport.height
+                    const dpr = window.devicePixelRatio || 1
+                    canvas.width = Math.floor(viewport.width * dpr)
+                    canvas.height = Math.floor(viewport.height * dpr)
+                    canvas.style.width = `${Math.floor(viewport.width)}px`
+                    canvas.style.height = `${Math.floor(viewport.height)}px`
                     container.appendChild(canvas)
 
                     const ctx = canvas.getContext('2d')!
+                    ctx.scale(dpr, dpr)
                     await page.render({ canvasContext: ctx, viewport }).promise
                 }
             } catch (err) {
                 if (!cancelled) {
+                    console.error('[PDF] Render error:', err)
                     setError(err instanceof Error ? err.message : String(err))
+                    setLoading(false)
                 }
             }
         }
@@ -62,15 +73,6 @@ export function PdfViewer({ path }: FileRendererProps): React.ReactElement {
         render()
         return () => { cancelled = true }
     }, [path, scale])
-
-    if (error) {
-        return (
-            <div className="file-viewer-error">
-                <p>Failed to load PDF</p>
-                <p className="file-viewer-error-detail">{error}</p>
-            </div>
-        )
-    }
 
     return (
         <div className="pdf-viewer">
@@ -83,6 +85,17 @@ export function PdfViewer({ path }: FileRendererProps): React.ReactElement {
                     <button onClick={() => setScale((s) => Math.min(4, s + 0.25))}>+</button>
                 </div>
             </div>
+            {error && (
+                <div className="file-viewer-error">
+                    <p>Failed to load PDF</p>
+                    <p className="file-viewer-error-detail">{error}</p>
+                </div>
+            )}
+            {loading && !error && (
+                <div className="file-viewer-loading">
+                    <p>Loading PDF…</p>
+                </div>
+            )}
             <div className="pdf-viewer-container" ref={containerRef} />
         </div>
     )

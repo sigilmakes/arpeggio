@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRegistry } from '../context/ExtensionContext'
-import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { Sidebar } from './Sidebar'
 import { CenterPane } from './CenterPane'
 import { Settings } from './Settings'
@@ -31,7 +30,6 @@ export function AppShell(): React.ReactElement {
         return () => window.removeEventListener('keydown', handler)
     }, [])
 
-    // Register the settings command
     useEffect(() => {
         registry.registerCommand(
             'open-settings',
@@ -42,46 +40,43 @@ export function AppShell(): React.ReactElement {
 
     return (
         <div className="app-shell">
-                {/* Workspace switcher — narrow left strip like Discord/Obsidian vaults */}
-                <WorkspaceSwitcher />
+            {/* Left sidebar — unified: workspace header + panel icons + content */}
+            <Sidebar
+                position="left"
+                panels={leftPanels}
+                activePanel={activeLeftPanel}
+                onPanelSelect={(id) => {
+                    if (id === activeLeftPanel) {
+                        setLeftSidebarOpen(!leftSidebarOpen)
+                    } else {
+                        setActiveLeftPanel(id)
+                        setLeftSidebarOpen(true)
+                    }
+                }}
+                isOpen={leftSidebarOpen}
+                onOpenSettings={openSettings}
+                showWorkspace
+            />
 
-                {/* Left sidebar */}
-                <Sidebar
-                    position="left"
-                    panels={leftPanels}
-                    activePanel={activeLeftPanel}
-                    onPanelSelect={(id) => {
-                        if (id === activeLeftPanel) {
-                            setLeftSidebarOpen(!leftSidebarOpen)
-                        } else {
-                            setActiveLeftPanel(id)
-                            setLeftSidebarOpen(true)
-                        }
-                    }}
-                    isOpen={leftSidebarOpen}
-                    onOpenSettings={openSettings}
-                />
+            {/* Center pane */}
+            <CenterPane />
 
-                {/* Center pane */}
-                <CenterPane />
+            {/* Right sidebar */}
+            <Sidebar
+                position="right"
+                panels={rightPanels}
+                activePanel={activeRightPanel}
+                onPanelSelect={(id) => {
+                    if (id === activeRightPanel) {
+                        setRightSidebarOpen(!rightSidebarOpen)
+                    } else {
+                        setActiveRightPanel(id)
+                        setRightSidebarOpen(true)
+                    }
+                }}
+                isOpen={rightSidebarOpen}
+            />
 
-                {/* Right sidebar */}
-                <Sidebar
-                    position="right"
-                    panels={rightPanels}
-                    activePanel={activeRightPanel}
-                    onPanelSelect={(id) => {
-                        if (id === activeRightPanel) {
-                            setRightSidebarOpen(!rightSidebarOpen)
-                        } else {
-                            setActiveRightPanel(id)
-                            setRightSidebarOpen(true)
-                        }
-                    }}
-                    isOpen={rightSidebarOpen}
-                />
-
-            {/* Settings modal */}
             <Settings isOpen={settingsOpen} onClose={closeSettings} />
         </div>
     )
