@@ -67,10 +67,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
         }
         const adapterEntry = registry.getAgentAdapter(agent.adapter)
         if (!adapterEntry) return null
-        const instance = adapterEntry.factory.create(agent.config)
+        // Pass workspace cwd to the adapter config
+        const config = {
+            ...agent.config,
+            cwd: activeWorkspace?.projectPaths?.[0]
+        }
+        const instance = adapterEntry.factory.create(config)
         adapterCache.set(agent.id, instance)
         return instance
-    }, [registry])
+    }, [registry, activeWorkspace])
 
     const sendMessage = useCallback(
         async (content: string) => {

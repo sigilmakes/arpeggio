@@ -27,7 +27,7 @@ export function registerSubprocessHandlers(): void {
                 cwd: cwd || undefined,
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: { ...process.env },
-                shell: false
+                shell: true
             })
 
             processes.set(id, proc)
