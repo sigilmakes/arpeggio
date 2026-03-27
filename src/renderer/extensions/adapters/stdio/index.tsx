@@ -2,31 +2,36 @@ import type { ArpeggioAPI } from '../../../core/extension-api'
 import type { AgentAdapterInstance, AgentAdapterFactory } from '../../../core/registry'
 
 /**
- * JSON STDIO adapter for pi.
+ * Pi RPC adapter — communicates via JSON-RPC over stdin/stdout.
  * 
- * Protocol: send plain text to stdin, receive JSONL events on stdout.
- * Key events:
- *   message_update { assistantMessageEvent: { type: "text_delta", delta: "..." } }
- *   message_end { message: { role: "assistant", content: [...] } }
- *   turn_end { toolResults: [...] }
+ * Protocol (from nest/src/bridge.ts):
+ *   Send: { id, type: "prompt", message, streamingBehavior: "followUp" }
+ *   Receive events:
+ *     message_update { assistantMessageEvent: { type: "text_delta", delta } }
+ *     tool_execution_start { toolName, args }
+ *     tool_execution_end { toolName, result, isError }
+ *     agent_end — turn complete, resolve promise
+ *     response { id, success, data } — RPC ack
  */
-class PiStdioAdapter implements AgentAdapterInstance {
+class PiRpcAdapter implements AgentAdapterInstance {
     private id: string
     private command: string
     private args: string[]
     private cwd?: string
     private messageHandler?: (message: string) => void
     private connected = false
-    private responseChunks: string[] = []
-    private toolResults: any[] = []
-    private thinkingContent = ''
-    private thinkingStart = 0
-    private pendingResolve?: (value: string) => void
+
+    // RPC state
+    private rpcPending = new Map<string, { resolve: (v: any) => void; reject: (e: Error) => void }>()
+    private responseText = ''
+    private responseQueue: { resolve: (text: string) => void; reject: (e: Error) => void }[] = []
+    private toolCalls: any[] = []
+    private currentToolName = ''
 
     constructor(config: Record<string, unknown>) {
         this.id = `pi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
         this.command = (config.command as string) || 'pi'
-        this.args = (config.args as string[]) || ['--mode', 'json']
+        this.args = (config.args as string[]) || ['--mode', 'rpc', '--continue']
         this.cwd = config.cwd as string | undefined
     }
 
@@ -40,130 +45,27 @@ class PiStdioAdapter implements AgentAdapterInstance {
 
         window.electron.subprocess.onStdout((id, line) => {
             if (id !== this.id) return
-            console.log(`[Pi adapter] got stdout line: ${line.slice(0, 100)}...`)
-            this.handleLine(line)
+            this.onLine(line)
         })
 
         window.electron.subprocess.onStderr((id, line) => {
             if (id !== this.id) return
-            console.log(`[Pi adapter] stderr: ${line.slice(0, 200)}`)
+            console.warn(`[Pi stderr] ${line}`)
         })
 
         window.electron.subprocess.onError((id, error) => {
             if (id !== this.id) return
-            console.error(`[Pi:${this.id}] Error:`, error)
+            console.error(`[Pi] Error:`, error)
             this.connected = false
-            if (this.pendingResolve) {
-                this.pendingResolve(`[Error: ${error}]`)
-                this.pendingResolve = undefined
-            }
+            this.rejectAll(new Error(error))
         })
 
         window.electron.subprocess.onExit((id, code) => {
             if (id !== this.id) return
+            console.log(`[Pi] Exited:`, code)
             this.connected = false
-            if (this.pendingResolve) {
-                this.pendingResolve(this.buildResponse())
-                this.pendingResolve = undefined
-            }
+            this.rejectAll(new Error(`Pi exited (${code})`))
         })
-    }
-
-    private handleLine(line: string): void {
-        try {
-            const event = JSON.parse(line)
-            
-            switch (event.type) {
-                case 'message_update': {
-                    const ame = event.assistantMessageEvent
-                    if (ame?.type === 'text_delta' && ame.delta) {
-                        this.responseChunks.push(ame.delta)
-                        // Stream partial content to UI
-                        this.messageHandler?.(JSON.stringify({
-                            type: 'streaming',
-                            content: this.responseChunks.join('')
-                        }))
-                    }
-                    if (ame?.type === 'thinking_delta' && ame.delta) {
-                        this.thinkingContent += ame.delta
-                    }
-                    if (ame?.type === 'thinking_start') {
-                        this.thinkingStart = Date.now()
-                        this.thinkingContent = ''
-                    }
-                    break
-                }
-
-                case 'tool_use_start': {
-                    // Tool call started
-                    this.messageHandler?.(JSON.stringify({
-                        type: 'tool_start',
-                        name: event.name || event.toolName || 'tool',
-                        input: event.input || ''
-                    }))
-                    break
-                }
-
-                case 'turn_end': {
-                    if (event.toolResults) {
-                        this.toolResults = event.toolResults
-                    }
-                    // Turn complete — resolve the promise
-                    if (this.pendingResolve) {
-                        this.pendingResolve(this.buildResponse())
-                        this.pendingResolve = undefined
-                    }
-                    break
-                }
-
-                case 'agent_end': {
-                    // Session complete
-                    if (this.pendingResolve) {
-                        this.pendingResolve(this.buildResponse())
-                        this.pendingResolve = undefined
-                    }
-                    break
-                }
-            }
-        } catch {
-            // Not JSON — ignore
-        }
-    }
-
-    private buildResponse(): string {
-        const content = this.responseChunks.join('').trim()
-        const result: any = { content: content || '(no response)' }
-
-        // Add thinking if present
-        if (this.thinkingContent) {
-            result.thinking = {
-                content: this.thinkingContent,
-                durationMs: this.thinkingStart ? Date.now() - this.thinkingStart : undefined,
-            }
-        }
-
-        // Add tool calls if present
-        if (this.toolResults.length > 0) {
-            result.toolCalls = this.toolResults.map((tr: any, i: number) => ({
-                id: `tc-${Date.now()}-${i}`,
-                name: tr.name || tr.toolName || 'tool',
-                input: typeof tr.input === 'string' ? tr.input : JSON.stringify(tr.input, null, 2),
-                output: typeof tr.output === 'string' ? tr.output : (tr.output ? JSON.stringify(tr.output, null, 2) : undefined),
-                status: tr.error ? 'error' : 'done'
-            }))
-        }
-
-        // Reset for next message
-        this.responseChunks = []
-        this.toolResults = []
-        this.thinkingContent = ''
-        this.thinkingStart = 0
-
-        // If only content, return plain string. If has extras, return JSON
-        if (!result.thinking && !result.toolCalls) {
-            return content || '(no response)'
-        }
-        return JSON.stringify(result)
     }
 
     async disconnect(): Promise<void> {
@@ -178,29 +80,131 @@ class PiStdioAdapter implements AgentAdapterInstance {
             await this.connect()
         }
 
-        // Pi expects plain text on stdin
-        await window.electron.subprocess.write(this.id, message)
+        this.responseText = ''
+        this.toolCalls = []
 
         return new Promise<string>((resolve, reject) => {
-            this.pendingResolve = resolve
-            setTimeout(() => {
-                if (this.pendingResolve === resolve) {
-                    this.pendingResolve = undefined
-                    // Return whatever we have so far rather than erroring
-                    const partial = this.buildResponse()
-                    resolve(partial || '(response timeout)')
-                }
-            }, 120000) // 2 minute timeout for pi
+            this.responseQueue.push({ resolve, reject })
+
+            // Send RPC prompt command
+            this.rpc('prompt', {
+                message,
+                streamingBehavior: 'followUp'
+            }).catch((err) => {
+                const idx = this.responseQueue.findIndex((q) => q.resolve === resolve)
+                if (idx >= 0) this.responseQueue.splice(idx, 1)
+                reject(err)
+            })
         })
     }
 
     onMessage(handler: (message: string) => void): void {
         this.messageHandler = handler
     }
+
+    private rpc(type: string, params: Record<string, unknown> = {}): Promise<any> {
+        const id = crypto.randomUUID()
+        const line = JSON.stringify({ id, type, ...params })
+        return new Promise((resolve, reject) => {
+            this.rpcPending.set(id, { resolve, reject })
+            window.electron.subprocess.write(this.id, line)
+        })
+    }
+
+    private onLine(line: string): void {
+        try {
+            const event = JSON.parse(line)
+            this.onEvent(event)
+        } catch {
+            // not JSON
+        }
+    }
+
+    private onEvent(event: any): void {
+        // RPC response
+        if (event.type === 'response' && event.id && this.rpcPending.has(event.id)) {
+            const pending = this.rpcPending.get(event.id)!
+            this.rpcPending.delete(event.id)
+            event.success ? pending.resolve(event.data) : pending.reject(new Error(event.error ?? 'RPC error'))
+            return
+        }
+
+        // Streaming text deltas
+        if (event.type === 'message_update') {
+            const delta = event.assistantMessageEvent
+            if (delta?.type === 'text_delta' && delta.delta) {
+                this.responseText += delta.delta
+                // Stream to UI
+                this.messageHandler?.(JSON.stringify({
+                    type: 'streaming',
+                    content: this.responseText
+                }))
+            }
+        }
+
+        // Fallback text from message_end
+        if (event.type === 'message_end') {
+            const msg = event.message
+            if (msg?.role === 'assistant' && !this.responseText) {
+                const blocks = Array.isArray(msg.content)
+                    ? msg.content.filter((b: any) => b.type === 'text')
+                    : []
+                this.responseText = blocks.map((b: any) => b.text).join('')
+            }
+        }
+
+        // Tool start
+        if (event.type === 'tool_execution_start') {
+            this.currentToolName = event.toolName || 'tool'
+            this.toolCalls.push({
+                id: `tc-${Date.now()}-${this.toolCalls.length}`,
+                name: this.currentToolName,
+                input: event.args ? JSON.stringify(event.args, null, 2) : '',
+                output: undefined,
+                status: 'running'
+            })
+        }
+
+        // Tool end
+        if (event.type === 'tool_execution_end') {
+            const last = this.toolCalls[this.toolCalls.length - 1]
+            if (last) {
+                last.output = typeof event.result === 'string' ? event.result : JSON.stringify(event.result, null, 2)
+                last.status = event.isError ? 'error' : 'done'
+            }
+        }
+
+        // Agent done — resolve
+        if (event.type === 'agent_end') {
+            const text = this.responseText.trim()
+            this.responseText = ''
+
+            const next = this.responseQueue.shift()
+            if (next) {
+                // Build structured response if we have tool calls
+                if (this.toolCalls.length > 0) {
+                    next.resolve(JSON.stringify({
+                        content: text || `Used ${this.toolCalls.length} tool(s)`,
+                        toolCalls: this.toolCalls
+                    }))
+                } else {
+                    next.resolve(text || '(no response)')
+                }
+                this.toolCalls = []
+            }
+        }
+    }
+
+    private rejectAll(err: Error): void {
+        for (const { reject } of this.responseQueue) reject(err)
+        this.responseQueue = []
+        for (const [, { reject }] of this.rpcPending) reject(err)
+        this.rpcPending.clear()
+    }
 }
 
 const piFactory: AgentAdapterFactory = {
-    create(config) { return new PiStdioAdapter(config) }
+    create(config) { return new PiRpcAdapter(config) }
 }
 
 export default function activate(app: ArpeggioAPI): void {
@@ -212,7 +216,7 @@ export default function activate(app: ArpeggioAPI): void {
         detect: () => true,
         defaults: {
             command: 'pi',
-            args: ['--mode', 'json'],
+            args: ['--mode', 'rpc', '--continue'],
         }
     })
 }
