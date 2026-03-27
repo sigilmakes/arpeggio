@@ -852,6 +852,7 @@ body {
     display: flex;
     align-items: stretch;
     height: 36px;
+    margin-top: 8px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
