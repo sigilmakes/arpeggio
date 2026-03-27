@@ -6,6 +6,7 @@ interface SidebarProps {
     position: 'left' | 'right'
     panels: SidebarPanelEntry[]
     activePanel: string
+    panelWidth?: number
     onPanelSelect: (id: string) => void
     isOpen: boolean
     onOpenSettings?: () => void
@@ -34,6 +35,7 @@ export function Sidebar({
     position,
     panels,
     activePanel,
+    panelWidth,
     onPanelSelect,
     isOpen,
     onOpenSettings
@@ -65,14 +67,13 @@ export function Sidebar({
 
             {/* Panel content + footer */}
             {isOpen && (
-                <div className="sidebar-panel-wrapper">
+                <div className="sidebar-panel-wrapper" style={panelWidth ? { width: `${panelWidth}px` } : undefined}>
                     {ActiveComponent && (
                         <div className="sidebar-panel-content">
                             <ActiveComponent />
                         </div>
                     )}
 
-                    {/* Bottom bar — workspace name, help, settings (left sidebar only) */}
                     {isLeft && onOpenSettings && (
                         <SidebarFooter onOpenSettings={onOpenSettings} />
                     )}
