@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useWorkspace } from '../../context/WorkspaceContext'
+import { useSettingsStore } from '../../context/ExtensionContext'
+
+const EXTENSION_ID = 'arpeggio.file-browser'
 
 export function FileBrowserIcon({ className }: { className?: string }): React.ReactElement {
     return (
@@ -26,6 +29,11 @@ interface DirEntry {
 
 export function FileBrowserPanel(): React.ReactElement {
     const { activeWorkspace, openFile } = useWorkspace()
+    const settingsStore = useSettingsStore()
+
+    const showHidden = settingsStore.get<boolean>(EXTENSION_ID, 'showHidden') ?? false
+    const excludeStr = settingsStore.get<string>(EXTENSION_ID, 'excludePatterns') ?? '.git,node_modules'
+    const excludeSet = new Set(excludeStr.split(',').map((s) => s.trim()).filter(Boolean))
 
     if (!activeWorkspace) {
         return (
@@ -55,6 +63,8 @@ export function FileBrowserPanel(): React.ReactElement {
                         depth={0}
                         defaultOpen
                         onFileClick={openFile}
+                        showHidden={showHidden}
+                        excludeSet={excludeSet}
                     />
                 ))}
             </div>
@@ -71,18 +81,9 @@ interface TreeNodeProps {
     depth: number
     defaultOpen?: boolean
     onFileClick: (path: string) => void
+    showHidden: boolean
+    excludeSet: Set<string>
 }
-
-const HIDDEN_ENTRIES = new Set([
-    '.git',
-    'node_modules',
-    '.next',
-    '__pycache__',
-    '.DS_Store',
-    'Thumbs.db',
-    '.vscode',
-    '.idea'
-])
 
 function TreeNode({
     path,
@@ -90,30 +91,45 @@ function TreeNode({
     isDirectory,
     depth,
     defaultOpen = false,
-    onFileClick
+    onFileClick,
+    showHidden,
+    excludeSet
 }: TreeNodeProps): React.ReactElement {
     const [open, setOpen] = useState(defaultOpen)
     const [children, setChildren] = useState<DirEntry[] | null>(null)
     const [loading, setLoading] = useState(false)
 
     const loadChildren = useCallback(async () => {
-        if (!isDirectory || children !== null) return
+        if (!isDirectory) return
         setLoading(true)
         try {
             const entries = (await window.electron.fs.readDir(path)) as DirEntry[]
-            setChildren(entries.filter((e) => !HIDDEN_ENTRIES.has(e.name) && !e.name.startsWith('.')))
+            setChildren(
+                entries.filter((e) => {
+                    if (excludeSet.has(e.name)) return false
+                    if (!showHidden && e.name.startsWith('.')) return false
+                    return true
+                })
+            )
         } catch (error) {
             console.error(`Failed to read directory: ${path}`, error)
             setChildren([])
         }
         setLoading(false)
-    }, [path, isDirectory, children])
+    }, [path, isDirectory, showHidden, excludeSet])
 
     useEffect(() => {
         if (open && isDirectory) {
             loadChildren()
         }
     }, [open, isDirectory, loadChildren])
+
+    // Reload when filter settings change
+    useEffect(() => {
+        if (open && isDirectory && children !== null) {
+            loadChildren()
+        }
+    }, [showHidden, excludeSet]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleClick = () => {
         if (isDirectory) {
@@ -138,7 +154,10 @@ function TreeNode({
             {open && isDirectory && (
                 <div className="tree-node-children">
                     {loading && (
-                        <div className="tree-node-row tree-node-loading" style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}>
+                        <div
+                            className="tree-node-row tree-node-loading"
+                            style={{ paddingLeft: `${(depth + 1) * 16 + 8}px` }}
+                        >
                             Loading…
                         </div>
                     )}
@@ -150,6 +169,8 @@ function TreeNode({
                             isDirectory={child.isDirectory}
                             depth={depth + 1}
                             onFileClick={onFileClick}
+                            showHidden={showHidden}
+                            excludeSet={excludeSet}
                         />
                     ))}
                 </div>
@@ -161,25 +182,17 @@ function TreeNode({
 function getFileIcon(name: string): string {
     const ext = name.split('.').pop()?.toLowerCase()
     switch (ext) {
-        case 'ts':
-        case 'tsx':
-            return '⬡'
-        case 'js':
-        case 'jsx':
-            return '◆'
-        case 'json':
-            return '{ }'
-        case 'md':
-            return '¶'
-        case 'css':
-            return '#'
-        case 'html':
-            return '<>'
-        case 'py':
-            return '🐍'
-        case 'rs':
-            return '⚙'
-        default:
-            return '○'
+        case 'ts': case 'tsx': return '⬡'
+        case 'js': case 'jsx': return '◆'
+        case 'json': return '{ }'
+        case 'md': case 'markdown': return '¶'
+        case 'css': case 'scss': case 'less': return '#'
+        case 'html': case 'htm': return '<>'
+        case 'py': return '🐍'
+        case 'rs': return '⚙'
+        case 'go': return '◇'
+        case 'png': case 'jpg': case 'jpeg': case 'gif': case 'svg': case 'webp': return '🖼'
+        case 'pdf': return '📄'
+        default: return '○'
     }
 }

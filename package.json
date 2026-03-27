@@ -27,12 +27,27 @@
         "vitest": "^3.0.0"
     },
     "pnpm": {
-        "onlyBuiltDependencies": ["electron", "esbuild", "@electron/get"]
+        "onlyBuiltDependencies": [
+            "electron",
+            "esbuild",
+            "@electron/get"
+        ]
     },
     "dependencies": {
         "@electron-toolkit/preload": "^3.0.0",
         "@electron-toolkit/utils": "^4.0.0",
+        "@milkdown/core": "^7.19.2",
+        "@milkdown/ctx": "^7.19.2",
+        "@milkdown/kit": "^7.19.2",
+        "@milkdown/plugin-history": "^7.19.2",
+        "@milkdown/plugin-listener": "^7.19.2",
+        "@milkdown/preset-commonmark": "^7.19.2",
+        "@milkdown/preset-gfm": "^7.19.2",
+        "@milkdown/react": "^7.19.2",
+        "@milkdown/theme-nord": "^7.19.2",
+        "@prosemirror-adapter/react": "^0.5.2",
         "jiti": "^2.4.0",
+        "monaco-editor": "^0.55.1",
         "react": "^19.0.0",
         "react-dom": "^19.0.0"
     }
