@@ -2,8 +2,17 @@ import type { ArpeggioAPI } from '../../../core/extension-api'
 import type { AgentAdapterInstance, AgentAdapterFactory } from '../../../core/registry'
 
 /**
- * Pi RPC adapter — uses polling for stdout (event push through
- * contextBridge is unreliable).
+ * Pi RPC adapter — streams structured events to the UI so thinking blocks,
+ * tool calls, and text all render incrementally.
+ *
+ * Events sent via onMessage:
+ *   { type: 'text', content }         — accumulated text so far
+ *   { type: 'thinking_start' }
+ *   { type: 'thinking_delta', content } — accumulated thinking so far
+ *   { type: 'thinking_end', content, durationMs }
+ *   { type: 'tool_start', id, name, input }
+ *   { type: 'tool_end', id, name, output, status }
+ *   { type: 'done', content, thinking, toolCalls } — final structured result
  */
 class PiRpcAdapter implements AgentAdapterInstance {
     private id: string
@@ -14,11 +23,13 @@ class PiRpcAdapter implements AgentAdapterInstance {
     private connected = false
     private pollTimer: ReturnType<typeof setInterval> | null = null
 
-    // State
     private responseText = ''
+    private thinkingText = ''
+    private thinkingStart = 0
     private responseQueue: { resolve: (text: string) => void; reject: (e: Error) => void }[] = []
     private rpcPending = new Map<string, { resolve: (v: any) => void; reject: (e: Error) => void }>()
     private toolCalls: any[] = []
+    private seenLines = new Set<string>()
 
     constructor(config: Record<string, unknown>) {
         this.id = `pi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
@@ -29,28 +40,22 @@ class PiRpcAdapter implements AgentAdapterInstance {
 
     async connect(): Promise<void> {
         if (!window.electron?.subprocess) throw new Error('Subprocess API not available')
-
         await window.electron.subprocess.spawn(this.id, this.command, this.args, this.cwd)
         this.connected = true
 
-        // Poll for stdout lines every 100ms
         this.pollTimer = setInterval(async () => {
             if (!this.connected) return
             try {
                 const lines = await window.electron.subprocess.readStdout(this.id)
                 for (const line of lines) {
+                    if (this.seenLines.has(line)) continue
+                    this.seenLines.add(line)
                     this.onLine(line)
                 }
-            } catch {
-                // Process may have exited
-            }
+                // Prevent unbounded memory growth
+                if (this.seenLines.size > 5000) this.seenLines.clear()
+            } catch { /* process may have exited */ }
         }, 100)
-
-        // Also try event-based (works in some Electron configs)
-        window.electron.subprocess.onStdout((id, line) => {
-            if (id !== this.id) return
-            this.onLine(line)
-        })
 
         window.electron.subprocess.onExit((id, code) => {
             if (id !== this.id) return
@@ -70,8 +75,9 @@ class PiRpcAdapter implements AgentAdapterInstance {
 
     async send(message: string): Promise<string> {
         if (!this.connected) await this.connect()
-
         this.responseText = ''
+        this.thinkingText = ''
+        this.thinkingStart = 0
         this.toolCalls = []
 
         return new Promise<string>((resolve, reject) => {
@@ -88,16 +94,19 @@ class PiRpcAdapter implements AgentAdapterInstance {
         this.messageHandler = handler
     }
 
+    private emit(event: Record<string, unknown>): void {
+        this.messageHandler?.(JSON.stringify(event))
+    }
+
     private stopPolling(): void {
         if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null }
     }
 
     private rpc(type: string, params: Record<string, unknown> = {}): Promise<any> {
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-        const line = JSON.stringify({ id, type, ...params })
         return new Promise((resolve, reject) => {
             this.rpcPending.set(id, { resolve, reject })
-            window.electron.subprocess.write(this.id, line)
+            window.electron.subprocess.write(this.id, JSON.stringify({ id, type, ...params }))
         })
     }
 
@@ -114,57 +123,88 @@ class PiRpcAdapter implements AgentAdapterInstance {
             return
         }
 
-        // Text streaming
         if (event.type === 'message_update') {
-            const delta = event.assistantMessageEvent
-            if (delta?.type === 'text_delta' && delta.delta) {
-                this.responseText += delta.delta
-                this.messageHandler?.(JSON.stringify({ type: 'streaming', content: this.responseText }))
+            const ame = event.assistantMessageEvent
+            if (!ame) return
+
+            // Text streaming
+            if (ame.type === 'text_delta' && ame.delta) {
+                this.responseText += ame.delta
+                this.emit({ type: 'text', content: this.responseText })
+            }
+
+            // Thinking streaming
+            if (ame.type === 'thinking_start' || (ame.type === 'thinking_delta' && !this.thinkingStart)) {
+                this.thinkingStart = Date.now()
+                this.thinkingText = ''
+                this.emit({ type: 'thinking_start' })
+            }
+            if (ame.type === 'thinking_delta' && ame.delta) {
+                this.thinkingText += ame.delta
+                this.emit({ type: 'thinking_delta', content: this.thinkingText })
+            }
+            if (ame.type === 'thinking_end') {
+                this.emit({
+                    type: 'thinking_end',
+                    content: this.thinkingText,
+                    durationMs: Date.now() - this.thinkingStart
+                })
             }
         }
 
-        // Fallback text
+        // Fallback text from message_end
         if (event.type === 'message_end' && event.message?.role === 'assistant' && !this.responseText) {
             const blocks = Array.isArray(event.message.content)
                 ? event.message.content.filter((b: any) => b.type === 'text') : []
             this.responseText = blocks.map((b: any) => b.text).join('')
+            if (this.responseText) {
+                this.emit({ type: 'text', content: this.responseText })
+            }
         }
 
-        // Tool start
+        // Tool start — stream immediately
         if (event.type === 'tool_execution_start') {
-            this.toolCalls.push({
+            const tc = {
                 id: `tc-${Date.now()}-${this.toolCalls.length}`,
                 name: event.toolName || 'tool',
                 input: event.args ? JSON.stringify(event.args, null, 2) : '',
                 status: 'running'
-            })
+            }
+            this.toolCalls.push(tc)
+            this.emit({ type: 'tool_start', ...tc })
         }
 
-        // Tool end
+        // Tool end — stream immediately
         if (event.type === 'tool_execution_end') {
             const last = this.toolCalls[this.toolCalls.length - 1]
             if (last) {
                 last.output = typeof event.result === 'string' ? event.result
                     : (event.result ? JSON.stringify(event.result, null, 2) : undefined)
                 last.status = event.isError ? 'error' : 'done'
+                this.emit({ type: 'tool_end', ...last })
             }
         }
 
-        // Turn complete
+        // Done
         if (event.type === 'agent_end') {
             const text = this.responseText.trim()
             this.responseText = ''
             const next = this.responseQueue.shift()
             if (next) {
-                if (this.toolCalls.length > 0) {
-                    next.resolve(JSON.stringify({
-                        content: text || `Used ${this.toolCalls.length} tool(s)`,
-                        toolCalls: this.toolCalls
-                    }))
-                } else {
-                    next.resolve(text || '(no response)')
+                const result: any = { content: text || '(no response)' }
+                if (this.thinkingText) {
+                    result.thinking = {
+                        content: this.thinkingText,
+                        durationMs: this.thinkingStart ? Date.now() - this.thinkingStart : undefined
+                    }
                 }
+                if (this.toolCalls.length > 0) {
+                    result.toolCalls = this.toolCalls
+                }
+                this.thinkingText = ''
+                this.thinkingStart = 0
                 this.toolCalls = []
+                next.resolve(JSON.stringify(result))
             }
         }
     }

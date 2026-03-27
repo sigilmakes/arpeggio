@@ -122,21 +122,48 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
                 setMessages((prev) => [...prev, streamMsg])
 
                 try {
-                    // Set up streaming handler for live updates
+                    // Incremental streaming handler — updates message fields live
                     adapter.onMessage?.((raw: string) => {
                         try {
                             const evt = JSON.parse(raw)
-                            if (evt.type === 'streaming' && evt.content) {
-                                setMessages((prev) => prev.map((m) =>
-                                    m.id === streamId ? { ...m, content: evt.content, streaming: true } : m
-                                ))
-                            }
-                        } catch { /* not JSON streaming event */ }
+                            setMessages((prev) => prev.map((m) => {
+                                if (m.id !== streamId) return m
+                                const updated = { ...m }
+
+                                if (evt.type === 'text') {
+                                    updated.content = evt.content
+                                }
+                                if (evt.type === 'thinking_start') {
+                                    updated.thinking = { content: '', collapsed: false }
+                                }
+                                if (evt.type === 'thinking_delta') {
+                                    updated.thinking = { ...updated.thinking, content: evt.content, collapsed: false }
+                                }
+                                if (evt.type === 'thinking_end') {
+                                    updated.thinking = { content: evt.content, collapsed: true, durationMs: evt.durationMs }
+                                }
+                                if (evt.type === 'tool_start') {
+                                    const tc: ToolCall = {
+                                        id: evt.id, name: evt.name,
+                                        input: evt.input || '', status: 'running', collapsed: false
+                                    }
+                                    updated.toolCalls = [...(updated.toolCalls ?? []), tc]
+                                }
+                                if (evt.type === 'tool_end') {
+                                    updated.toolCalls = (updated.toolCalls ?? []).map((tc) =>
+                                        tc.id === evt.id
+                                            ? { ...tc, output: evt.output, status: evt.status, collapsed: true }
+                                            : tc
+                                    )
+                                }
+                                return updated
+                            }))
+                        } catch { /* not JSON */ }
                     })
 
                     const response = await adapter.send(content.trim())
                     if (response) {
-                        // Parse structured response (may contain thinking/toolCalls)
+                        // Parse final structured response
                         let finalContent = response
                         let toolCalls: ToolCall[] | undefined
                         let thinking: ThinkingBlock | undefined
@@ -155,22 +182,25 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
                                 }))
                             }
                             if (parsed.thinking) {
-                                thinking = {
-                                    content: parsed.thinking.content || '',
-                                    collapsed: true,
-                                    durationMs: parsed.thinking.durationMs
-                                }
+                                thinking = { content: parsed.thinking.content || '', collapsed: true, durationMs: parsed.thinking.durationMs }
                             }
-                        } catch { /* not JSON — use raw string as content */ }
+                        } catch { /* plain text */ }
 
-                        const finalMsg: ChatMessage = {
-                            ...streamMsg,
-                            content: finalContent,
-                            streaming: false,
-                            toolCalls,
-                            thinking
-                        }
-                        setMessages((prev) => prev.map((m) => m.id === streamId ? finalMsg : m))
+                        // Final update — mark streaming done, ensure all fields set
+                        setMessages((prev) => prev.map((m) => {
+                            if (m.id !== streamId) return m
+                            return {
+                                ...m,
+                                content: finalContent,
+                                streaming: false,
+                                // Keep live-streamed tool calls/thinking if final doesn't have them
+                                toolCalls: toolCalls ?? m.toolCalls,
+                                thinking: thinking ?? (m.thinking ? { ...m.thinking, collapsed: true } : undefined)
+                            }
+                        }))
+
+                        // Persist final message
+                        const finalMsg = { ...streamMsg, content: finalContent, streaming: false, toolCalls, thinking }
                         await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, finalMsg)
                     } else {
                         setMessages((prev) => prev.filter((m) => m.id !== streamId))
