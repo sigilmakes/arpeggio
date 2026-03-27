@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useRegistry } from '../context/ExtensionContext'
 import { Sidebar } from './Sidebar'
 import { CenterPane } from './CenterPane'
+import { ThemeToggle } from './ThemeToggle'
 
 export function AppShell(): React.ReactElement {
     const registry = useRegistry()
@@ -33,6 +34,9 @@ export function AppShell(): React.ReactElement {
 
             {/* Center pane */}
             <CenterPane />
+
+            {/* Theme toggle */}
+            <ThemeToggle />
 
             {/* Right sidebar */}
             <Sidebar
