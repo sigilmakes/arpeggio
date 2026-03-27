@@ -3,6 +3,8 @@ import type { WorkspaceConfig, ChannelConfig } from '@shared/types'
 import type { ChatMessage } from '@shared/message-types'
 import { createMessage, CURRENT_USER, SYSTEM_SENDER } from '@shared/message-types'
 import { useWorkspace } from './WorkspaceContext'
+import { useRegistry } from './ExtensionContext'
+import type { AgentConfig } from '@shared/agent-types'
 
 interface ChatContextValue {
     channels: ChannelConfig[]
@@ -19,13 +21,13 @@ const ChatContext = createContext<ChatContextValue | null>(null)
 
 export function ChatProvider({ children }: { children: React.ReactNode }): React.ReactElement {
     const { activeWorkspace } = useWorkspace()
+    const registry = useRegistry()
     const [channels, setChannels] = useState<ChannelConfig[]>([])
     const [activeChannelId, setActiveChannelId] = useState<string | null>(null)
     const [messages, setMessages] = useState<ChatMessage[]>([])
 
     const activeChannel = channels.find((c) => c.id === activeChannelId) ?? null
 
-    // Load channels when workspace changes
     useEffect(() => {
         if (!activeWorkspace) {
             setChannels([])
@@ -38,7 +40,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
         if (first) setActiveChannelId(first.id)
     }, [activeWorkspace?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Load messages when channel changes
     useEffect(() => {
         if (!activeWorkspace || !activeChannelId) {
             setMessages([])
@@ -57,54 +58,87 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
 
             // Handle slash commands
             if (content.startsWith('/')) {
-                const [cmd, ...args] = content.slice(1).split(' ')
-                // For now just echo it as a system message
+                const [cmd] = content.slice(1).split(' ')
                 const sysMsg = createMessage(activeChannelId, SYSTEM_SENDER, `Unknown command: /${cmd}`, 'system')
                 setMessages((prev) => [...prev, sysMsg])
                 await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, sysMsg)
                 return
             }
 
+            // Send user message
             const msg = createMessage(activeChannelId, CURRENT_USER, content.trim())
             setMessages((prev) => [...prev, msg])
             await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, msg)
 
-            // Echo agent for testing (P3 mock — replaced by real agents in P4)
-            setTimeout(async () => {
-                const echoSender = { id: 'echo', name: 'Echo', type: 'agent' as const }
-                const echoMsg = createMessage(activeChannelId, echoSender, content.trim(), 'text')
-                setMessages((prev) => [...prev, echoMsg])
-                await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, echoMsg)
-            }, 300)
+            // Route to agents in this channel
+            const channelAgentIds = activeChannel?.agents ?? []
+            const workspaceAgents: AgentConfig[] = activeWorkspace.agents ?? []
+
+            // If no agents assigned, route to ALL workspace agents
+            const agentsToRoute = channelAgentIds.length > 0
+                ? workspaceAgents.filter((a) => channelAgentIds.includes(a.id))
+                : workspaceAgents
+
+            for (const agent of agentsToRoute) {
+                const adapterEntry = registry.getAgentAdapter(agent.adapter)
+                if (!adapterEntry) continue
+
+                try {
+                    const instance = adapterEntry.factory.create(agent.config)
+                    const response = await instance.send(content.trim())
+                    if (response) {
+                        const agentSender = {
+                            id: agent.id,
+                            name: agent.name,
+                            type: 'agent' as const
+                        }
+                        const agentMsg = createMessage(activeChannelId, agentSender, response, 'text')
+                        setMessages((prev) => [...prev, agentMsg])
+                        await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, agentMsg)
+                    }
+                } catch (err) {
+                    const errMsg = createMessage(
+                        activeChannelId,
+                        SYSTEM_SENDER,
+                        `${agent.name} error: ${err instanceof Error ? err.message : String(err)}`,
+                        'system'
+                    )
+                    setMessages((prev) => [...prev, errMsg])
+                    await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, errMsg)
+                }
+            }
         },
-        [activeWorkspace, activeChannelId]
+        [activeWorkspace, activeChannelId, activeChannel, registry]
+    )
+
+    const saveWorkspaceConfig = useCallback(
+        async (updated: ChannelConfig[]) => {
+            if (!activeWorkspace) return
+            const config = { ...activeWorkspace, channels: updated }
+            const homePath = await window.electron.app.getPath('home')
+            await window.electron.fs.writeFile(
+                `${homePath}/.arpeggio/workspaces/${activeWorkspace.id}/workspace.json`,
+                JSON.stringify(config, null, 4)
+            )
+        },
+        [activeWorkspace]
     )
 
     const createChannel = useCallback(
         async (name: string) => {
-            if (!activeWorkspace) return
+            if (!activeWorkspace || !window.electron?.chat) return
             const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `ch-${Date.now()}`
             const newChannel: ChannelConfig = { id, name, agents: [] }
             const updated = [...channels, newChannel]
             setChannels(updated)
             setActiveChannelId(id)
+            await saveWorkspaceConfig(updated)
 
-            // Update workspace config
-            const config = { ...activeWorkspace, channels: updated }
-            const wsDir = `${activeWorkspace.id}`
-            await window.electron.workspace.create({ id: config.id, name: config.name, projectPaths: config.projectPaths })
-                .catch(() => {}) // may already exist
-            // Save updated config by writing workspace.json directly
-            const configJson = JSON.stringify(config, null, 4)
-            const homePath = await window.electron.app.getPath('home')
-            await window.electron.fs.writeFile(`${homePath}/.arpeggio/workspaces/${wsDir}/workspace.json`, configJson)
-
-            // System message
             const sysMsg = createMessage(id, SYSTEM_SENDER, `Channel #${name} created`, 'system')
             await window.electron.chat.appendMessage(activeWorkspace.id, id, sysMsg)
             setMessages([sysMsg])
         },
-        [activeWorkspace, channels]
+        [activeWorkspace, channels, saveWorkspaceConfig]
     )
 
     const deleteChannel = useCallback(
@@ -115,15 +149,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
             if (activeChannelId === id) {
                 setActiveChannelId(updated[0]?.id ?? null)
             }
-
-            const config = { ...activeWorkspace, channels: updated }
-            const homePath = await window.electron.app.getPath('home')
-            await window.electron.fs.writeFile(
-                `${homePath}/.arpeggio/workspaces/${activeWorkspace.id}/workspace.json`,
-                JSON.stringify(config, null, 4)
-            )
+            await saveWorkspaceConfig(updated)
         },
-        [activeWorkspace, channels, activeChannelId]
+        [activeWorkspace, channels, activeChannelId, saveWorkspaceConfig]
     )
 
     const renameChannel = useCallback(
@@ -131,15 +159,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
             if (!activeWorkspace) return
             const updated = channels.map((c) => (c.id === id ? { ...c, name } : c))
             setChannels(updated)
-
-            const config = { ...activeWorkspace, channels: updated }
-            const homePath = await window.electron.app.getPath('home')
-            await window.electron.fs.writeFile(
-                `${homePath}/.arpeggio/workspaces/${activeWorkspace.id}/workspace.json`,
-                JSON.stringify(config, null, 4)
-            )
+            await saveWorkspaceConfig(updated)
         },
-        [activeWorkspace, channels]
+        [activeWorkspace, channels, saveWorkspaceConfig]
     )
 
     return (

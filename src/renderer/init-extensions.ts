@@ -14,6 +14,7 @@ import imageViewerActivate from './extensions/image-viewer'
 import pdfViewerActivate from './extensions/pdf-viewer'
 import plaintextRendererActivate from './extensions/plaintext-renderer'
 import echoAdapterActivate from './extensions/adapters/echo'
+import acpAdapterActivate from './extensions/adapters/acp'
 import stdioAdapterActivate from './extensions/adapters/stdio'
 
 /**
@@ -43,5 +44,6 @@ export function initExtensions(loader: ExtensionLoader): void {
 
     // Agent adapters
     loader.registerBuiltIn('arpeggio.adapter-echo', 'Echo Adapter', echoAdapterActivate)
+    loader.registerBuiltIn('arpeggio.adapter-acp', 'ACP Adapter', acpAdapterActivate)
     loader.registerBuiltIn('arpeggio.adapter-stdio', 'STDIO Adapter', stdioAdapterActivate)
 }

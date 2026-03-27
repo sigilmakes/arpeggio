@@ -1537,34 +1537,93 @@ body {
     border-radius: 8px;
 }
 
-.agent-add-form {
-    padding: 8px 10px;
+.agent-row-remove {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    flex-shrink: 0;
+}
+.agent-row:hover .agent-row-remove { opacity: 1; }
+.agent-row-remove:hover { background: var(--bg-active); color: var(--text-primary); }
+
+/* Agent template picker */
+.agent-picker {
+    padding: 4px 0;
+    border-top: 1px solid var(--border-light);
+}
+
+.agent-picker-header {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 6px 14px 4px;
+}
+
+.agent-picker-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8px 14px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-sans);
+    transition: background 0.08s ease;
+}
+
+.agent-picker-item:hover:not(:disabled) { background: var(--bg-hover); }
+.agent-picker-item:disabled { opacity: 0.5; cursor: default; }
+
+.agent-picker-item-info {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 1px;
 }
 
-.agent-add-input,
-.agent-add-select {
-    width: 100%;
-    padding: 5px 8px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg-primary);
+.agent-picker-item-name {
+    font-size: 0.85rem;
+    font-weight: 500;
     color: var(--text-primary);
+}
+
+.agent-picker-item-adapter {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.agent-picker-item-check {
+    color: var(--accent);
+    font-size: 0.85rem;
+}
+
+.agent-picker-cancel {
+    display: block;
+    width: 100%;
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
     font-family: var(--font-sans);
-    font-size: 0.82rem;
-    outline: none;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-align: center;
+    border-top: 1px solid var(--border-light);
+    margin-top: 4px;
 }
-
-.agent-add-input:focus,
-.agent-add-select:focus { border-color: var(--accent); }
-
-.agent-add-actions {
-    display: flex;
-    gap: 6px;
-    justify-content: flex-end;
-}
+.agent-picker-cancel:hover { background: var(--bg-hover); color: var(--text-primary); }
 
 /* ── Chat Channels Panel ────────────────────────────────── */
 

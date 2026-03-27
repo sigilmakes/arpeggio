@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useWorkspace } from '../../context/WorkspaceContext'
-import { useChat } from '../../context/ChatContext'
+import { useRegistry } from '../../context/ExtensionContext'
 import type { AgentConfig, AgentStatus } from '@shared/agent-types'
 
 export function AgentManagerIcon({ className }: { className?: string }): React.ReactElement {
@@ -20,26 +20,54 @@ const STATUS_COLORS: Record<AgentStatus, string> = {
     inactive: '#6b6560'
 }
 
-const STATUS_LABELS: Record<AgentStatus, string> = {
-    available: 'Available',
-    connecting: 'Connecting…',
-    active: 'Active',
-    error: 'Error',
-    inactive: 'Inactive'
-}
-
 export function AgentManagerPanel(): React.ReactElement {
     const { activeWorkspace } = useWorkspace()
+    const registry = useRegistry()
     const [agents, setAgents] = useState<AgentConfig[]>([])
-    const [showAdd, setShowAdd] = useState(false)
+    const [showPicker, setShowPicker] = useState(false)
 
+    const templates = registry.getAllAgentTemplates()
+
+    // Load agents from workspace
     useEffect(() => {
-        if (activeWorkspace) {
-            setAgents(activeWorkspace.agents ?? [])
-        } else {
-            setAgents([])
-        }
+        setAgents(activeWorkspace?.agents ?? [])
     }, [activeWorkspace])
+
+    // Persist agents to workspace.json
+    const persistAgents = useCallback(async (updated: AgentConfig[]) => {
+        if (!activeWorkspace) return
+        const homePath = await window.electron.app.getPath('home')
+        const config = { ...activeWorkspace, agents: updated }
+        await window.electron.fs.writeFile(
+            `${homePath}/.arpeggio/workspaces/${activeWorkspace.id}/workspace.json`,
+            JSON.stringify(config, null, 4)
+        )
+    }, [activeWorkspace])
+
+    const addAgent = useCallback(async (templateId: string) => {
+        const template = templates.find((t) => t.id === templateId)
+        if (!template) return
+
+        const agent: AgentConfig = {
+            id: `${templateId}-${Date.now()}`,
+            name: template.displayName,
+            template: templateId,
+            adapter: template.adapter,
+            config: { ...template.defaults },
+            status: 'inactive'
+        }
+
+        const updated = [...agents, agent]
+        setAgents(updated)
+        await persistAgents(updated)
+        setShowPicker(false)
+    }, [agents, templates, persistAgents])
+
+    const removeAgent = useCallback(async (id: string) => {
+        const updated = agents.filter((a) => a.id !== id)
+        setAgents(updated)
+        await persistAgents(updated)
+    }, [agents, persistAgents])
 
     if (!activeWorkspace) {
         return (
@@ -51,89 +79,64 @@ export function AgentManagerPanel(): React.ReactElement {
 
     return (
         <div className="agent-panel">
-            {agents.length === 0 && !showAdd && (
-                <div className="panel-content">
-                    <p className="panel-placeholder">No agents configured</p>
-                </div>
-            )}
-
+            {/* Agent list */}
             <div className="agent-list">
                 {agents.map((agent) => (
-                    <AgentRow key={agent.id} agent={agent} />
+                    <div key={agent.id} className="agent-row">
+                        <span className="agent-status-dot" style={{ background: STATUS_COLORS[agent.status || 'inactive'] }} />
+                        <div className="agent-row-info">
+                            <span className="agent-row-name">{agent.name}</span>
+                            <span className="agent-row-adapter">{agent.adapter}</span>
+                        </div>
+                        <button
+                            className="agent-row-remove"
+                            onClick={() => removeAgent(agent.id)}
+                            title="Remove agent"
+                        >
+                            ✕
+                        </button>
+                    </div>
                 ))}
             </div>
 
-            {showAdd ? (
-                <AddAgentForm
-                    onAdd={(agent) => {
-                        setAgents((prev) => [...prev, agent])
-                        setShowAdd(false)
-                    }}
-                    onCancel={() => setShowAdd(false)}
-                />
+            {agents.length === 0 && !showPicker && (
+                <div className="panel-content">
+                    <p className="panel-placeholder">No agents yet</p>
+                </div>
+            )}
+
+            {/* Template picker — one click to add */}
+            {showPicker ? (
+                <div className="agent-picker">
+                    <div className="agent-picker-header">Add agent</div>
+                    {templates.map((t) => {
+                        const alreadyAdded = agents.some((a) => a.template === t.id)
+                        return (
+                            <button
+                                key={t.id}
+                                className={`agent-picker-item ${alreadyAdded ? 'added' : ''}`}
+                                onClick={() => !alreadyAdded && addAgent(t.id)}
+                                disabled={alreadyAdded}
+                            >
+                                <div className="agent-picker-item-info">
+                                    <span className="agent-picker-item-name">{t.displayName}</span>
+                                    <span className="agent-picker-item-adapter">{t.adapter}</span>
+                                </div>
+                                {alreadyAdded && <span className="agent-picker-item-check">✓</span>}
+                            </button>
+                        )
+                    })}
+                    <button className="agent-picker-cancel" onClick={() => setShowPicker(false)}>
+                        Cancel
+                    </button>
+                </div>
             ) : (
                 <div style={{ padding: '4px 10px' }}>
-                    <button className="panel-action-btn" onClick={() => setShowAdd(true)}>
-                        + New Agent
+                    <button className="panel-action-btn" onClick={() => setShowPicker(true)}>
+                        + Add Agent
                     </button>
                 </div>
             )}
-        </div>
-    )
-}
-
-function AgentRow({ agent }: { agent: AgentConfig }): React.ReactElement {
-    const status = agent.status || 'inactive'
-    return (
-        <div className="agent-row">
-            <span className="agent-status-dot" style={{ background: STATUS_COLORS[status] }} />
-            <div className="agent-row-info">
-                <span className="agent-row-name">{agent.name}</span>
-                <span className="agent-row-status">{STATUS_LABELS[status]}</span>
-            </div>
-            <span className="agent-row-adapter">{agent.adapter}</span>
-        </div>
-    )
-}
-
-function AddAgentForm({ onAdd, onCancel }: { onAdd: (a: AgentConfig) => void; onCancel: () => void }): React.ReactElement {
-    const [name, setName] = useState('')
-    const [adapter, setAdapter] = useState('echo')
-
-    const handleAdd = () => {
-        if (!name.trim()) return
-        const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + `-${Date.now()}`
-        onAdd({
-            id,
-            name: name.trim(),
-            template: adapter,
-            adapter,
-            config: {},
-            status: 'inactive'
-        })
-    }
-
-    return (
-        <div className="agent-add-form">
-            <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Agent name"
-                className="agent-add-input"
-                autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') onCancel() }}
-            />
-            <select value={adapter} onChange={(e) => setAdapter(e.target.value)} className="agent-add-select">
-                <option value="echo">Echo (test)</option>
-                <option value="stdio">STDIO</option>
-                <option value="http">HTTP</option>
-                <option value="acp">ACP</option>
-            </select>
-            <div className="agent-add-actions">
-                <button className="form-btn-secondary" onClick={onCancel} style={{ fontSize: '0.8rem', padding: '4px 10px' }}>Cancel</button>
-                <button className="form-btn-primary" onClick={handleAdd} disabled={!name.trim()} style={{ fontSize: '0.8rem', padding: '4px 10px' }}>Add</button>
-            </div>
         </div>
     )
 }
