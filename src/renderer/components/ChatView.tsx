@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
+import { marked } from 'marked'
 import { useChat } from '../context/ChatContext'
 import type { ChatMessage, ToolCall, ThinkingBlock, ContentBlock } from '@shared/message-types'
 
@@ -320,38 +321,27 @@ function formatToolOutput(output: string | undefined): string {
     }
 }
 
-// ── Markdown-lite content rendering ────────────────────────
+// ── Markdown rendering ──────────────────────────────────────
+
+// Configure marked for chat messages
+marked.setOptions({
+    breaks: true,
+    gfm: true,
+})
 
 function MessageContent({ content }: { content: string }): React.ReactElement {
-    const parts = content.split(/(```[\s\S]*?```|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g)
+    const html = useMemo(() => {
+        try {
+            return marked.parse(content) as string
+        } catch {
+            return content
+        }
+    }, [content])
 
     return (
-        <>
-            {parts.map((part, i) => {
-                if (part.startsWith('```') && part.endsWith('```')) {
-                    const code = part.slice(3, -3).replace(/^\w+\n/, '')
-                    return <pre key={i} className="chat-code-block"><code>{code}</code></pre>
-                }
-                if (part.startsWith('`') && part.endsWith('`')) {
-                    return <code key={i} className="chat-inline-code">{part.slice(1, -1)}</code>
-                }
-                if (part.startsWith('**') && part.endsWith('**')) {
-                    return <strong key={i}>{part.slice(2, -2)}</strong>
-                }
-                if (part.startsWith('*') && part.endsWith('*')) {
-                    return <em key={i}>{part.slice(1, -1)}</em>
-                }
-                const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-                if (linkMatch) {
-                    return <a key={i} href={linkMatch[2]} className="chat-link" target="_blank" rel="noreferrer">{linkMatch[1]}</a>
-                }
-                return <span key={i}>{part.split('\n').map((line, j, arr) => (
-                    <React.Fragment key={j}>
-                        {line}
-                        {j < arr.length - 1 && <br />}
-                    </React.Fragment>
-                ))}</span>
-            })}
-        </>
+        <div
+            className="chat-markdown"
+            dangerouslySetInnerHTML={{ __html: html }}
+        />
     )
 }

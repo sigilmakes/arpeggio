@@ -6,6 +6,7 @@ import { useWorkspace } from './WorkspaceContext'
 import { useRegistry } from './ExtensionContext'
 import type { AgentConfig } from '@shared/agent-types'
 import type { AgentAdapterInstance } from '../core/registry'
+import { setAgentStats } from '../core/agent-stats'
 
 interface ChatContextValue {
     channels: ChannelConfig[]
@@ -170,6 +171,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
                                     if (idx >= 0) {
                                         blocks[idx] = { ...blocks[idx], type: 'tool_call', output: evt.output, status: evt.status, collapsed: true } as ContentBlock
                                     }
+                                }
+
+                                // Handle stats updates
+                                if (evt.type === 'stats') {
+                                    setAgentStats(agent.id, {
+                                        model: evt.model,
+                                        inputTokens: evt.inputTokens,
+                                        outputTokens: evt.outputTokens,
+                                        cost: evt.cost,
+                                        contextUsed: evt.contextUsed,
+                                    })
+                                    return m // no message change
                                 }
 
                                 const content = blocks.filter((b) => b.type === 'text').map((b) => (b as any).content).join('')

@@ -47,6 +47,7 @@
         "@milkdown/theme-nord": "^7.19.2",
         "@prosemirror-adapter/react": "^0.5.2",
         "jiti": "^2.4.0",
+        "marked": "^17.0.5",
         "monaco-editor": "^0.55.1",
         "pdfjs-dist": "4.10.38",
         "react": "^19.0.0",

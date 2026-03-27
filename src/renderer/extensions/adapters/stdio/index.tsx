@@ -31,6 +31,14 @@ class PiRpcAdapter implements AgentAdapterInstance {
     private toolCalls: any[] = []
     private seenLines = new Set<string>()
 
+    // Tracked stats — readable from outside
+    public model = ''
+    public totalInputTokens = 0
+    public totalOutputTokens = 0
+    public totalCost = 0
+    public contextUsed = 0
+    public contextLimit = 200000 // default, updated from events
+
     constructor(config: Record<string, unknown>) {
         this.id = `pi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
         this.command = (config.command as string) || 'pi'
@@ -148,6 +156,29 @@ class PiRpcAdapter implements AgentAdapterInstance {
                     type: 'thinking_end',
                     content: this.thinkingText,
                     durationMs: Date.now() - this.thinkingStart
+                })
+            }
+        }
+
+        // Extract model + usage from assistant message events
+        if (event.type === 'message_start' && event.message?.role === 'assistant') {
+            if (event.message.model) this.model = event.message.model
+        }
+        if (event.type === 'message_end' && event.message?.role === 'assistant') {
+            const usage = event.message.usage
+            if (usage) {
+                this.totalInputTokens += (usage.input || 0) + (usage.cacheRead || 0)
+                this.totalOutputTokens += usage.output || 0
+                this.totalCost += usage.cost?.total || 0
+                this.contextUsed = (usage.input || 0) + (usage.output || 0) + (usage.cacheRead || 0)
+                // Emit stats update
+                this.emit({
+                    type: 'stats',
+                    model: this.model,
+                    inputTokens: this.totalInputTokens,
+                    outputTokens: this.totalOutputTokens,
+                    cost: this.totalCost,
+                    contextUsed: this.contextUsed,
                 })
             }
         }
