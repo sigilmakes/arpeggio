@@ -19,9 +19,6 @@ export function ChatChannelsIcon({ className }: { className?: string }): React.R
 export function ChatChannelsPanel(): React.ReactElement {
     return (
         <div className="chat-channels-panel">
-            <div className="panel-header">
-                <h3>Channels</h3>
-            </div>
             <div className="panel-content">
                 <p className="panel-placeholder">No channels yet</p>
                 <button className="panel-action-btn">+ New Channel</button>

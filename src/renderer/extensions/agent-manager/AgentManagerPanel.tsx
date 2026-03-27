@@ -20,9 +20,6 @@ export function AgentManagerIcon({ className }: { className?: string }): React.R
 export function AgentManagerPanel(): React.ReactElement {
     return (
         <div className="agent-manager-panel">
-            <div className="panel-header">
-                <h3>Agents</h3>
-            </div>
             <div className="panel-content">
                 <p className="panel-placeholder">No agents configured</p>
                 <button className="panel-action-btn">+ New Agent</button>

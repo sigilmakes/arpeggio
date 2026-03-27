@@ -38,9 +38,6 @@ export function FileBrowserPanel(): React.ReactElement {
     if (!activeWorkspace) {
         return (
             <div className="file-browser-panel">
-                <div className="panel-header">
-                    <h3>Files</h3>
-                </div>
                 <div className="panel-content">
                     <p className="panel-placeholder">Open a workspace to browse files</p>
                 </div>
@@ -50,9 +47,6 @@ export function FileBrowserPanel(): React.ReactElement {
 
     return (
         <div className="file-browser-panel">
-            <div className="panel-header">
-                <h3>{activeWorkspace.name}</h3>
-            </div>
             <div className="file-browser-tree">
                 {activeWorkspace.projectPaths.map((rootPath) => (
                     <TreeNode
