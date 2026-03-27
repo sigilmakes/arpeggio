@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react'
 import type { FileRendererProps } from '../../core/registry'
 import * as pdfjsLib from 'pdfjs-dist'
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
-// Use fake worker to avoid worker loading issues in Electron
-pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker
 
 export function PdfViewer({ path }: FileRendererProps): React.ReactElement {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -31,13 +31,7 @@ export function PdfViewer({ path }: FileRendererProps): React.ReactElement {
                     bytes[i] = binary.charCodeAt(i)
                 }
 
-                const loadingTask = pdfjsLib.getDocument({
-                    data: bytes,
-                    useWorkerFetch: false,
-                    isEvalSupported: false,
-                    useSystemFonts: true,
-                })
-                const pdf = await loadingTask.promise
+                const pdf = await pdfjsLib.getDocument({ data: bytes }).promise
                 if (cancelled) return
 
                 setPageCount(pdf.numPages)

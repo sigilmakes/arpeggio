@@ -211,6 +211,10 @@ body {
     overflow-y: auto;
 }
 
+.sidebar-panel-wrapper .sidebar-panel-content {
+    width: auto;
+}
+
 .sidebar-closed .sidebar-panel-content {
     display: none;
 }
@@ -527,37 +531,83 @@ body {
     margin-top: 2px;
 }
 
-/* ── Workspace Selector (in sidebar icon strip) ─────────── */
+/* ── Sidebar Panel Wrapper ──────────────────────────────── */
 
-.workspace-selector {
+.sidebar-panel-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: var(--sidebar-panel-width);
+    min-height: 0;
+}
+
+.sidebar-panel-wrapper .sidebar-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    width: auto;
+}
+
+/* ── Sidebar Footer (Obsidian-style) ────────────────────── */
+
+.sidebar-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-top: 1px solid var(--border-light);
+    flex-shrink: 0;
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding-bottom: 6px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid var(--border-light);
 }
 
-.workspace-selector-btn {
-    width: 36px;
-    height: 36px;
+.sidebar-footer-workspace {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     border: none;
-    border-radius: var(--radius-md);
-    background: var(--accent);
-    color: var(--accent-text);
-    font-size: 0.95rem;
-    font-weight: 600;
+    background: transparent;
+    color: var(--text-secondary);
     font-family: var(--font-sans);
+    font-size: 0.8rem;
     cursor: pointer;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.sidebar-footer-workspace:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.sidebar-footer-workspace-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+}
+
+.sidebar-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.sidebar-footer-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
 }
 
-.workspace-selector-btn:hover {
-    filter: brightness(1.1);
+.sidebar-footer-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 /* Dropdown menu */
@@ -569,8 +619,9 @@ body {
 
 .workspace-menu {
     position: absolute;
-    top: 42px;
+    bottom: 100%;
     left: 0;
+    margin-bottom: 4px;
     z-index: 501;
     min-width: 200px;
     background: var(--bg-primary);

@@ -9,21 +9,20 @@ interface SidebarProps {
     onPanelSelect: (id: string) => void
     isOpen: boolean
     onOpenSettings?: () => void
-    showWorkspace?: boolean
 }
 
-function SettingsGearIcon({ className }: { className?: string }): React.ReactElement {
+function SettingsGearIcon(): React.ReactElement {
     return (
-        <svg className={className} width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
             <path d="M16.2 12.2a1.4 1.4 0 00.28 1.54l.05.05a1.7 1.7 0 11-2.4 2.4l-.05-.05a1.4 1.4 0 00-1.54-.28 1.4 1.4 0 00-.85 1.28v.14a1.7 1.7 0 11-3.4 0v-.07a1.4 1.4 0 00-.92-1.28 1.4 1.4 0 00-1.54.28l-.05.05a1.7 1.7 0 11-2.4-2.4l.05-.05a1.4 1.4 0 00.28-1.54 1.4 1.4 0 00-1.28-.85h-.14a1.7 1.7 0 110-3.4h.07a1.4 1.4 0 001.28-.92 1.4 1.4 0 00-.28-1.54l-.05-.05a1.7 1.7 0 112.4-2.4l.05.05a1.4 1.4 0 001.54.28h.07a1.4 1.4 0 00.85-1.28v-.14a1.7 1.7 0 113.4 0v.07a1.4 1.4 0 00.85 1.28 1.4 1.4 0 001.54-.28l.05-.05a1.7 1.7 0 112.4 2.4l-.05.05a1.4 1.4 0 00-.28 1.54v.07a1.4 1.4 0 001.28.85h.14a1.7 1.7 0 110 3.4h-.07a1.4 1.4 0 00-1.28.85z" />
         </svg>
     )
 }
 
-function HelpIcon({ className }: { className?: string }): React.ReactElement {
+function HelpIcon(): React.ReactElement {
     return (
-        <svg className={className} width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="10" cy="10" r="7" />
             <path d="M8 7.5a2 2 0 012.8-1.8 2 2 0 01.7 3.3c-.5.5-1 .8-1 1.5" />
             <circle cx="10.5" cy="13.5" r="0.5" fill="currentColor" stroke="none" />
@@ -37,19 +36,16 @@ export function Sidebar({
     activePanel,
     onPanelSelect,
     isOpen,
-    onOpenSettings,
-    showWorkspace
+    onOpenSettings
 }: SidebarProps): React.ReactElement {
     const activeEntry = panels.find((p) => p.id === activePanel)
     const ActiveComponent = activeEntry?.component
+    const isLeft = position === 'left'
 
     return (
         <div className={`sidebar sidebar-${position} ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
             {/* Icon strip */}
             <div className="sidebar-icons">
-                {/* Workspace selector at top of left sidebar */}
-                {showWorkspace && position === 'left' && <WorkspaceSelector />}
-
                 <div className="sidebar-icons-top">
                     {panels.map((panel) => {
                         const Icon = panel.icon
@@ -65,48 +61,61 @@ export function Sidebar({
                         )
                     })}
                 </div>
-
-                {position === 'left' && onOpenSettings && (
-                    <div className="sidebar-icons-bottom">
-                        <button className="sidebar-icon-btn" onClick={() => {}} title="Help">
-                            <HelpIcon className="sidebar-icon" />
-                        </button>
-                        <button className="sidebar-icon-btn" onClick={onOpenSettings} title="Settings">
-                            <SettingsGearIcon className="sidebar-icon" />
-                        </button>
-                    </div>
-                )}
             </div>
 
-            {/* Panel content */}
-            {isOpen && ActiveComponent && (
-                <div className="sidebar-panel-content">
-                    <ActiveComponent />
+            {/* Panel content + footer */}
+            {isOpen && (
+                <div className="sidebar-panel-wrapper">
+                    {ActiveComponent && (
+                        <div className="sidebar-panel-content">
+                            <ActiveComponent />
+                        </div>
+                    )}
+
+                    {/* Bottom bar — workspace name, help, settings (left sidebar only) */}
+                    {isLeft && onOpenSettings && (
+                        <SidebarFooter onOpenSettings={onOpenSettings} />
+                    )}
                 </div>
             )}
         </div>
     )
 }
 
-// ── Workspace Selector ─────────────────────────────────────
+// ── Sidebar Footer (Obsidian-style) ────────────────────────
 
-function WorkspaceSelector(): React.ReactElement {
+function SidebarFooter({ onOpenSettings }: { onOpenSettings: () => void }): React.ReactElement {
     const { workspaces, activeWorkspace, openWorkspace, createWorkspace } = useWorkspace()
     const [menuOpen, setMenuOpen] = useState(false)
     const [showCreate, setShowCreate] = useState(false)
 
-    const initial = activeWorkspace?.name?.charAt(0).toUpperCase() ?? '?'
-
     return (
-        <div className="workspace-selector">
+        <div className="sidebar-footer">
+            {/* Workspace switcher */}
             <button
-                className="workspace-selector-btn"
+                className="sidebar-footer-workspace"
                 onClick={() => setMenuOpen(!menuOpen)}
-                title={activeWorkspace?.name ?? 'Select workspace'}
+                title="Switch workspace"
             >
-                <span className="workspace-selector-initial">{initial}</span>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="2" y="3" width="16" height="14" rx="2" />
+                    <path d="M6 3v14" />
+                </svg>
+                <span className="sidebar-footer-workspace-name">
+                    {activeWorkspace?.name ?? 'No workspace'}
+                </span>
             </button>
 
+            <div className="sidebar-footer-actions">
+                <button className="sidebar-footer-btn" onClick={() => {}} title="Help">
+                    <HelpIcon />
+                </button>
+                <button className="sidebar-footer-btn" onClick={onOpenSettings} title="Settings">
+                    <SettingsGearIcon />
+                </button>
+            </div>
+
+            {/* Workspace dropdown */}
             {menuOpen && (
                 <>
                     <div className="workspace-menu-backdrop" onClick={() => setMenuOpen(false)} />

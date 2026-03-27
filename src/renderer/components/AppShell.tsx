@@ -55,7 +55,6 @@ export function AppShell(): React.ReactElement {
                 }}
                 isOpen={leftSidebarOpen}
                 onOpenSettings={openSettings}
-                showWorkspace
             />
 
             {/* Center pane */}
