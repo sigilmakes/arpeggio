@@ -34,7 +34,7 @@ class PiRpcAdapter implements AgentAdapterInstance {
     constructor(config: Record<string, unknown>) {
         this.id = `pi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
         this.command = (config.command as string) || 'pi'
-        this.args = (config.args as string[]) || ['--mode', 'rpc', '--continue']
+        this.args = (config.args as string[]) || ['--mode', 'rpc']
         this.cwd = config.cwd as string | undefined
     }
 
@@ -225,6 +225,6 @@ export default function activate(app: ArpeggioAPI): void {
         displayName: 'Pi',
         adapter: 'json-stdio',
         detect: () => true,
-        defaults: { command: 'pi', args: ['--mode', 'rpc', '--continue'] }
+        defaults: { command: 'pi', args: ['--mode', 'rpc'] }
     })
 }
