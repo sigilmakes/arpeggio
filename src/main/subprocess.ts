@@ -7,6 +7,8 @@ import { spawn, type ChildProcess } from 'child_process'
  */
 
 const processes = new Map<string, ChildProcess>()
+const stdoutQueues = new Map<string, string[]>()
+const stderrQueues = new Map<string, string[]>()
 
 export function registerSubprocessHandlers(): void {
     // Check if an env var is set (for credential detection)
@@ -31,24 +33,26 @@ export function registerSubprocessHandlers(): void {
             })
 
             processes.set(id, proc)
+            stdoutQueues.set(id, [])
+            stderrQueues.set(id, [])
 
-            // Forward stdout lines to renderer
+            // Buffer stdout lines for polling
             let stdoutBuffer = ''
             proc.stdout?.on('data', (data: Buffer) => {
-                const chunk = data.toString()
-                console.log(`[subprocess:${id}] stdout chunk (${chunk.length} bytes)`)
-                stdoutBuffer += chunk
+                stdoutBuffer += data.toString()
                 const lines = stdoutBuffer.split('\n')
                 stdoutBuffer = lines.pop() ?? ''
                 for (const line of lines) {
                     if (line.trim()) {
-                        console.log(`[subprocess:${id}] sending line: ${line.slice(0, 80)}...`)
+                        const queue = stdoutQueues.get(id)
+                        if (queue) queue.push(line)
+                        // Also try event push
                         sendToRenderer('subprocess:stdout', id, line)
                     }
                 }
             })
 
-            // Forward stderr lines to renderer
+            // Buffer stderr lines for polling
             let stderrBuffer = ''
             proc.stderr?.on('data', (data: Buffer) => {
                 stderrBuffer += data.toString()
@@ -56,6 +60,8 @@ export function registerSubprocessHandlers(): void {
                 stderrBuffer = lines.pop() ?? ''
                 for (const line of lines) {
                     if (line.trim()) {
+                        const queue = stderrQueues.get(id)
+                        if (queue) queue.push(line)
                         sendToRenderer('subprocess:stderr', id, line)
                     }
                 }
@@ -103,6 +109,19 @@ export function registerSubprocessHandlers(): void {
 
     ipcMain.handle('subprocess:is-alive', async (_event, id: string) => {
         return processes.has(id)
+    })
+
+    // Buffered output — renderer polls this instead of relying on event push
+    ipcMain.handle('subprocess:read-stdout', async (_event, id: string) => {
+        const lines = stdoutQueues.get(id) ?? []
+        stdoutQueues.set(id, [])
+        return lines
+    })
+
+    ipcMain.handle('subprocess:read-stderr', async (_event, id: string) => {
+        const lines = stderrQueues.get(id) ?? []
+        stderrQueues.set(id, [])
+        return lines
     })
 }
 

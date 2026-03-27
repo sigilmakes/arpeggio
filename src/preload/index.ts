@@ -45,6 +45,8 @@ export interface ElectronAPI {
         write: (id: string, data: string) => Promise<boolean>
         kill: (id: string) => Promise<boolean>
         isAlive: (id: string) => Promise<boolean>
+        readStdout: (id: string) => Promise<string[]>
+        readStderr: (id: string) => Promise<string[]>
         onStdout: (handler: (id: string, data: string) => void) => void
         onStderr: (handler: (id: string, data: string) => void) => void
         onError: (handler: (id: string, error: string) => void) => void
@@ -147,6 +149,8 @@ const api: ElectronAPI = {
         write: (id: string, data: string) => ipcRenderer.invoke('subprocess:write', id, data),
         kill: (id: string) => ipcRenderer.invoke('subprocess:kill', id),
         isAlive: (id: string) => ipcRenderer.invoke('subprocess:is-alive', id),
+        readStdout: (id: string) => ipcRenderer.invoke('subprocess:read-stdout', id),
+        readStderr: (id: string) => ipcRenderer.invoke('subprocess:read-stderr', id),
         // These use window.dispatchEvent because contextBridge proxying
         // can interfere with ipcRenderer.on callback delivery
         onStdout: (handler: (id: string, data: string) => void) => {
