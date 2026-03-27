@@ -35,11 +35,14 @@ export function registerSubprocessHandlers(): void {
             // Forward stdout lines to renderer
             let stdoutBuffer = ''
             proc.stdout?.on('data', (data: Buffer) => {
-                stdoutBuffer += data.toString()
+                const chunk = data.toString()
+                console.log(`[subprocess:${id}] stdout chunk (${chunk.length} bytes)`)
+                stdoutBuffer += chunk
                 const lines = stdoutBuffer.split('\n')
                 stdoutBuffer = lines.pop() ?? ''
                 for (const line of lines) {
                     if (line.trim()) {
+                        console.log(`[subprocess:${id}] sending line: ${line.slice(0, 80)}...`)
                         sendToRenderer('subprocess:stdout', id, line)
                     }
                 }

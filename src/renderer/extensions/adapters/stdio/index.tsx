@@ -40,7 +40,13 @@ class PiStdioAdapter implements AgentAdapterInstance {
 
         window.electron.subprocess.onStdout((id, line) => {
             if (id !== this.id) return
+            console.log(`[Pi adapter] got stdout line: ${line.slice(0, 100)}...`)
             this.handleLine(line)
+        })
+
+        window.electron.subprocess.onStderr((id, line) => {
+            if (id !== this.id) return
+            console.log(`[Pi adapter] stderr: ${line.slice(0, 200)}`)
         })
 
         window.electron.subprocess.onError((id, error) => {

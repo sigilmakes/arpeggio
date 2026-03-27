@@ -82,6 +82,21 @@ interface FileStat {
     ctime: number
 }
 
+// Bridge subprocess IPC events to DOM CustomEvents
+// (contextBridge can't reliably proxy ipcRenderer.on callbacks)
+ipcRenderer.on('subprocess:stdout', (_e, id, data) => {
+    window.dispatchEvent(new CustomEvent('subprocess-stdout', { detail: { id, data } }))
+})
+ipcRenderer.on('subprocess:stderr', (_e, id, data) => {
+    window.dispatchEvent(new CustomEvent('subprocess-stderr', { detail: { id, data } }))
+})
+ipcRenderer.on('subprocess:error', (_e, id, data) => {
+    window.dispatchEvent(new CustomEvent('subprocess-error', { detail: { id, data } }))
+})
+ipcRenderer.on('subprocess:exit', (_e, id, data) => {
+    window.dispatchEvent(new CustomEvent('subprocess-exit', { detail: { id, data } }))
+})
+
 const api: ElectronAPI = {
     fs: {
         readDir: (path: string) => ipcRenderer.invoke(IPC_CHANNELS.FS_READ_DIR, path),
@@ -132,14 +147,28 @@ const api: ElectronAPI = {
         write: (id: string, data: string) => ipcRenderer.invoke('subprocess:write', id, data),
         kill: (id: string) => ipcRenderer.invoke('subprocess:kill', id),
         isAlive: (id: string) => ipcRenderer.invoke('subprocess:is-alive', id),
-        onStdout: (handler: (id: string, data: string) => void) =>
-            ipcRenderer.on('subprocess:stdout', (_e, id, data) => handler(id, data)),
-        onStderr: (handler: (id: string, data: string) => void) =>
-            ipcRenderer.on('subprocess:stderr', (_e, id, data) => handler(id, data)),
-        onError: (handler: (id: string, error: string) => void) =>
-            ipcRenderer.on('subprocess:error', (_e, id, error) => handler(id, error)),
-        onExit: (handler: (id: string, code: string) => void) =>
-            ipcRenderer.on('subprocess:exit', (_e, id, code) => handler(id, code)),
+        // These use window.dispatchEvent because contextBridge proxying
+        // can interfere with ipcRenderer.on callback delivery
+        onStdout: (handler: (id: string, data: string) => void) => {
+            window.addEventListener('subprocess-stdout', ((e: CustomEvent) => {
+                handler(e.detail.id, e.detail.data)
+            }) as EventListener)
+        },
+        onStderr: (handler: (id: string, data: string) => void) => {
+            window.addEventListener('subprocess-stderr', ((e: CustomEvent) => {
+                handler(e.detail.id, e.detail.data)
+            }) as EventListener)
+        },
+        onError: (handler: (id: string, error: string) => void) => {
+            window.addEventListener('subprocess-error', ((e: CustomEvent) => {
+                handler(e.detail.id, e.detail.data)
+            }) as EventListener)
+        },
+        onExit: (handler: (id: string, code: string) => void) => {
+            window.addEventListener('subprocess-exit', ((e: CustomEvent) => {
+                handler(e.detail.id, e.detail.data)
+            }) as EventListener)
+        },
     },
     dialog: {
         openDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_DIRECTORY)
