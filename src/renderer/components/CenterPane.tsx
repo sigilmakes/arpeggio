@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { useRegistry } from '../context/ExtensionContext'
 import { TabBar } from './TabBar'
+import { ChatView } from './ChatView'
 import type { ExtensionRegistry } from '../core/registry'
 
 interface CenterPaneProps {
@@ -14,6 +15,7 @@ export function CenterPane({ sidebarOpen, onToggleSidebar }: CenterPaneProps): R
     const registry = useRegistry()
 
     const activeTab = openTabs.find((t) => t.id === activeTabId)
+    const isChat = activeTab?.path.startsWith('chat://')
 
     return (
         <div className="center-pane">
@@ -27,13 +29,17 @@ export function CenterPane({ sidebarOpen, onToggleSidebar }: CenterPaneProps): R
             />
 
             {activeTab ? (
-                <FileViewer key={activeTab.path} path={activeTab.path} registry={registry} />
+                isChat ? (
+                    <ChatView />
+                ) : (
+                    <FileViewer key={activeTab.path} path={activeTab.path} registry={registry} />
+                )
             ) : (
                 <div className="center-pane-empty">
                     <div className="center-pane-logo">
                         <h1>Arpeggio</h1>
                         {activeWorkspace ? (
-                            <p>Open a file from the sidebar</p>
+                            <p>Open a file or start a conversation</p>
                         ) : (
                             <p>Select or create a workspace to get started</p>
                         )}
@@ -54,18 +60,12 @@ interface FileViewerProps {
 function FileViewer({ path, registry }: FileViewerProps): React.ReactElement {
     const [content, setContent] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
-
     const isBinary = /\.(png|jpg|jpeg|gif|webp|bmp|ico|pdf)$/i.test(path)
 
     useEffect(() => {
-        if (isBinary) {
-            setContent('')
-            return
-        }
-
+        if (isBinary) { setContent(''); return }
         setContent(null)
         setError(null)
-
         window.electron.fs
             .readFile(path)
             .then((text) => setContent(text))
@@ -91,11 +91,7 @@ function FileViewer({ path, registry }: FileViewerProps): React.ReactElement {
     }
 
     if (content === null) {
-        return (
-            <div className="file-viewer-loading">
-                <p>Loading…</p>
-            </div>
-        )
+        return <div className="file-viewer-loading"><p>Loading…</p></div>
     }
 
     const rendererEntry = registry.getFileRenderer(path)
@@ -110,9 +106,7 @@ function FileViewer({ path, registry }: FileViewerProps): React.ReactElement {
                 <span className="plaintext-filename">{path.split('/').pop()}</span>
                 <span className="plaintext-meta">{content.split('\n').length} lines</span>
             </div>
-            <pre className="plaintext-content">
-                <code>{content}</code>
-            </pre>
+            <pre className="plaintext-content"><code>{content}</code></pre>
         </div>
     )
 }

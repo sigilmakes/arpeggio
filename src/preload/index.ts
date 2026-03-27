@@ -17,6 +17,11 @@ export interface ElectronAPI {
         saveState: (id: string, state: Record<string, unknown>) => Promise<boolean>
         loadState: (id: string) => Promise<unknown>
     }
+    chat: {
+        readMessages: (workspaceId: string, channelId: string, limit?: number) => Promise<unknown[]>
+        appendMessage: (workspaceId: string, channelId: string, message: unknown) => Promise<boolean>
+        listChannels: (workspaceId: string) => Promise<string[]>
+    }
     dialog: {
         openDirectory: () => Promise<string | null>
     }
@@ -66,6 +71,14 @@ const api: ElectronAPI = {
         saveState: (id: string, state: Record<string, unknown>) =>
             ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_SAVE_STATE, id, state),
         loadState: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LOAD_STATE, id)
+    },
+    chat: {
+        readMessages: (workspaceId: string, channelId: string, limit?: number) =>
+            ipcRenderer.invoke(IPC_CHANNELS.CHAT_READ_MESSAGES, workspaceId, channelId, limit),
+        appendMessage: (workspaceId: string, channelId: string, message: unknown) =>
+            ipcRenderer.invoke(IPC_CHANNELS.CHAT_APPEND_MESSAGE, workspaceId, channelId, message),
+        listChannels: (workspaceId: string) =>
+            ipcRenderer.invoke(IPC_CHANNELS.CHAT_LIST_CHANNELS, workspaceId),
     },
     dialog: {
         openDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_DIRECTORY)

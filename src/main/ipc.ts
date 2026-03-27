@@ -1,5 +1,5 @@
 import { ipcMain, app, dialog, BrowserWindow } from 'electron'
-import { readdir, readFile, writeFile, stat, mkdir, rm } from 'fs/promises'
+import { readdir, readFile, writeFile, stat, mkdir, rm, appendFile } from 'fs/promises'
 import { join } from 'path'
 import { IPC_CHANNELS } from '../shared/types'
 
@@ -180,4 +180,47 @@ export function registerIpcHandlers(): void {
             return null
         }
     })
+
+    // ── Chat ───────────────────────────────────────────────
+
+    ipcMain.handle(
+        IPC_CHANNELS.CHAT_READ_MESSAGES,
+        async (_event, workspaceId: string, channelId: string, limit?: number) => {
+            const chatPath = join(workspacesDir(), workspaceId, 'chat', `${channelId}.jsonl`)
+            try {
+                const content = await readFile(chatPath, 'utf-8')
+                const lines = content.trim().split('\n').filter(Boolean)
+                const messages = lines.map((line) => JSON.parse(line))
+                return limit ? messages.slice(-limit) : messages
+            } catch {
+                return []
+            }
+        }
+    )
+
+    ipcMain.handle(
+        IPC_CHANNELS.CHAT_APPEND_MESSAGE,
+        async (_event, workspaceId: string, channelId: string, message: unknown) => {
+            const chatDir = join(workspacesDir(), workspaceId, 'chat')
+            await mkdir(chatDir, { recursive: true })
+            const chatPath = join(chatDir, `${channelId}.jsonl`)
+            await appendFile(chatPath, JSON.stringify(message) + '\n', 'utf-8')
+            return true
+        }
+    )
+
+    ipcMain.handle(
+        IPC_CHANNELS.CHAT_LIST_CHANNELS,
+        async (_event, workspaceId: string) => {
+            const chatDir = join(workspacesDir(), workspaceId, 'chat')
+            try {
+                const entries = await readdir(chatDir)
+                return entries
+                    .filter((e) => e.endsWith('.jsonl'))
+                    .map((e) => e.replace('.jsonl', ''))
+            } catch {
+                return []
+            }
+        }
+    )
 }

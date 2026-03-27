@@ -2,6 +2,7 @@ import React, { useEffect, useState, Component, type ErrorInfo, type ReactNode }
 import { AppShell } from './components/AppShell'
 import { ExtensionProvider, useExtensions } from './context/ExtensionContext'
 import { WorkspaceProvider } from './context/WorkspaceContext'
+import { ChatProvider } from './context/ChatContext'
 import { initExtensions } from './init-extensions'
 import { ExtensionRegistry } from './core/registry'
 import { EventBus } from './core/event-bus'
@@ -127,7 +128,9 @@ export default function App(): React.ReactElement {
                 settingsStore={ctx.settingsStore}
             >
                 <WorkspaceProvider>
-                    <AppContent />
+                    <ChatProvider>
+                        <AppContent />
+                    </ChatProvider>
                 </WorkspaceProvider>
             </ExtensionProvider>
         </ErrorBoundary>

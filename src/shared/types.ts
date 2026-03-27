@@ -136,6 +136,11 @@ export const IPC_CHANNELS = {
     // Dialog
     DIALOG_OPEN_DIRECTORY: 'dialog:open-directory',
 
+    // Chat
+    CHAT_READ_MESSAGES: 'chat:read-messages',
+    CHAT_APPEND_MESSAGE: 'chat:append-message',
+    CHAT_LIST_CHANNELS: 'chat:list-channels',
+
     // Extensions
     EXTENSION_LIST: 'extension:list',
     EXTENSION_LOAD: 'extension:load',
