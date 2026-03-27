@@ -36,6 +36,16 @@ export interface ElectronAPI {
         show: (cwd: string, hash: string) => Promise<string>
         createBranch: (cwd: string, name: string) => Promise<string>
     }
+    subprocess: {
+        spawn: (id: string, command: string, args: string[], cwd?: string) => Promise<{ pid: number }>
+        write: (id: string, data: string) => Promise<boolean>
+        kill: (id: string) => Promise<boolean>
+        isAlive: (id: string) => Promise<boolean>
+        onStdout: (handler: (id: string, data: string) => void) => void
+        onStderr: (handler: (id: string, data: string) => void) => void
+        onError: (handler: (id: string, error: string) => void) => void
+        onExit: (handler: (id: string, code: string) => void) => void
+    }
     dialog: {
         openDirectory: () => Promise<string | null>
     }
@@ -107,6 +117,21 @@ const api: ElectronAPI = {
         checkout: (cwd: string, branch: string) => ipcRenderer.invoke('git:checkout', cwd, branch),
         show: (cwd: string, hash: string) => ipcRenderer.invoke('git:show', cwd, hash),
         createBranch: (cwd: string, name: string) => ipcRenderer.invoke('git:create-branch', cwd, name),
+    },
+    subprocess: {
+        spawn: (id: string, command: string, args: string[], cwd?: string) =>
+            ipcRenderer.invoke('subprocess:spawn', id, command, args, cwd),
+        write: (id: string, data: string) => ipcRenderer.invoke('subprocess:write', id, data),
+        kill: (id: string) => ipcRenderer.invoke('subprocess:kill', id),
+        isAlive: (id: string) => ipcRenderer.invoke('subprocess:is-alive', id),
+        onStdout: (handler: (id: string, data: string) => void) =>
+            ipcRenderer.on('subprocess:stdout', (_e, id, data) => handler(id, data)),
+        onStderr: (handler: (id: string, data: string) => void) =>
+            ipcRenderer.on('subprocess:stderr', (_e, id, data) => handler(id, data)),
+        onError: (handler: (id: string, error: string) => void) =>
+            ipcRenderer.on('subprocess:error', (_e, id, error) => handler(id, error)),
+        onExit: (handler: (id: string, code: string) => void) =>
+            ipcRenderer.on('subprocess:exit', (_e, id, code) => handler(id, code)),
     },
     dialog: {
         openDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_DIRECTORY)

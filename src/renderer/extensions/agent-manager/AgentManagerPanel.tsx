@@ -85,20 +85,7 @@ export function AgentManagerPanel(): React.ReactElement {
             {/* Agent list */}
             <div className="agent-list">
                 {agents.map((agent) => (
-                    <div key={agent.id} className="agent-row">
-                        <span className="agent-status-dot" style={{ background: STATUS_COLORS[agent.status || 'inactive'] }} />
-                        <div className="agent-row-info">
-                            <span className="agent-row-name">{agent.name}</span>
-                            <span className="agent-row-adapter">{agent.adapter}</span>
-                        </div>
-                        <button
-                            className="agent-row-remove"
-                            onClick={() => removeAgent(agent.id)}
-                            title="Remove agent"
-                        >
-                            ✕
-                        </button>
-                    </div>
+                    <AgentRow key={agent.id} agent={agent} onRemove={() => removeAgent(agent.id)} />
                 ))}
             </div>
 
@@ -140,6 +127,24 @@ export function AgentManagerPanel(): React.ReactElement {
                     </button>
                 </div>
             )}
+        </div>
+    )
+}
+
+function AgentRow({ agent, onRemove }: { agent: AgentConfig; onRemove: () => void }): React.ReactElement {
+    const status = agent.status || 'inactive'
+
+    return (
+        <div className="agent-row">
+            <span className="agent-status-dot" style={{ background: STATUS_COLORS[status] }} />
+            <div className="agent-row-info">
+                <span className="agent-row-name">{agent.name}</span>
+                <span className="agent-row-meta">
+                    <span className="agent-row-adapter">{agent.adapter}</span>
+                    <span className="agent-row-status-text">{status}</span>
+                </span>
+            </div>
+            <button className="agent-row-remove" onClick={onRemove} title="Remove agent">✕</button>
         </div>
     )
 }

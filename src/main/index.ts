@@ -5,6 +5,7 @@ import { is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
 import { registerExtensionScanner } from './extension-scanner'
 import { registerGitHandlers } from './git'
+import { registerSubprocessHandlers } from './subprocess'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -71,6 +72,7 @@ app.whenReady().then(() => {
     registerIpcHandlers()
     registerExtensionScanner()
     registerGitHandlers()
+    registerSubprocessHandlers()
 
     createWindow()
 

@@ -1,23 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useChat } from '../context/ChatContext'
-import type { ChatMessage } from '@shared/message-types'
+import type { ChatMessage, ToolCall, ThinkingBlock } from '@shared/message-types'
 
 export function ChatView(): React.ReactElement {
-    const { activeChannel, messages, sendMessage } = useChat()
+    const { activeChannel, messages, sendMessage, toggleToolCall, toggleThinking } = useChat()
     const [input, setInput] = useState('')
     const [sending, setSending] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLTextAreaElement>(null)
 
-    // Auto-scroll to bottom on new messages
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, [messages.length])
+    }, [messages.length, messages[messages.length - 1]?.content])
 
-    // Focus input on channel change
-    useEffect(() => {
-        inputRef.current?.focus()
-    }, [activeChannel?.id])
+    useEffect(() => { inputRef.current?.focus() }, [activeChannel?.id])
 
     const handleSend = async () => {
         if (!input.trim() || sending) return
@@ -46,7 +42,6 @@ export function ChatView(): React.ReactElement {
 
     return (
         <div className="chat-view">
-            {/* Messages */}
             <div className="chat-messages">
                 {messages.length === 0 && (
                     <div className="chat-messages-empty">
@@ -55,12 +50,16 @@ export function ChatView(): React.ReactElement {
                     </div>
                 )}
                 {messages.map((msg) => (
-                    <MessageBubble key={msg.id} message={msg} />
+                    <MessageBubble
+                        key={msg.id}
+                        message={msg}
+                        onToggleToolCall={toggleToolCall}
+                        onToggleThinking={() => toggleThinking(msg.id)}
+                    />
                 ))}
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
             <div className="chat-input-container">
                 <textarea
                     ref={inputRef}
@@ -88,7 +87,15 @@ export function ChatView(): React.ReactElement {
 
 // ── Message Bubble ─────────────────────────────────────────
 
-function MessageBubble({ message }: { message: ChatMessage }): React.ReactElement {
+function MessageBubble({
+    message,
+    onToggleToolCall,
+    onToggleThinking
+}: {
+    message: ChatMessage
+    onToggleToolCall: (messageId: string, toolCallId: string) => void
+    onToggleThinking: () => void
+}): React.ReactElement {
     const isSystem = message.sender.type === 'system'
     const isUser = message.sender.type === 'user'
 
@@ -112,10 +119,123 @@ function MessageBubble({ message }: { message: ChatMessage }): React.ReactElemen
                         {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                 </div>
-                <div className="chat-msg-content">
-                    <MessageContent content={message.content} />
-                </div>
+
+                {/* Thinking block */}
+                {message.thinking && (
+                    <ThinkingBlockView thinking={message.thinking} onToggle={onToggleThinking} />
+                )}
+
+                {/* Streaming indicator */}
+                {message.streaming && !message.content && (
+                    <div className="chat-msg-streaming">
+                        <span className="chat-streaming-dot" />
+                        <span className="chat-streaming-dot" />
+                        <span className="chat-streaming-dot" />
+                    </div>
+                )}
+
+                {/* Message content */}
+                {message.content && (
+                    <div className="chat-msg-content">
+                        <MessageContent content={message.content} />
+                    </div>
+                )}
+
+                {/* Tool calls */}
+                {message.toolCalls && message.toolCalls.length > 0 && (
+                    <div className="chat-tool-calls">
+                        {message.toolCalls.map((tc) => (
+                            <ToolCallBlock
+                                key={tc.id}
+                                toolCall={tc}
+                                onToggle={() => onToggleToolCall(message.id, tc.id)}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
+        </div>
+    )
+}
+
+// ── Thinking Block ─────────────────────────────────────────
+
+function ThinkingBlockView({
+    thinking,
+    onToggle
+}: {
+    thinking: ThinkingBlock
+    onToggle: () => void
+}): React.ReactElement {
+    const duration = thinking.durationMs
+        ? thinking.durationMs < 1000
+            ? `${thinking.durationMs}ms`
+            : `${(thinking.durationMs / 1000).toFixed(1)}s`
+        : null
+
+    const preview = thinking.content.split('\n')[0].slice(0, 80)
+
+    return (
+        <div className="thinking-block">
+            <button className="thinking-block-header" onClick={onToggle}>
+                <span className="thinking-block-chevron">{thinking.collapsed ? '▸' : '▾'}</span>
+                <span className="thinking-block-icon">💭</span>
+                <span className="thinking-block-label">Thinking</span>
+                {duration && <span className="thinking-block-duration">{duration}</span>}
+                {thinking.collapsed && (
+                    <span className="thinking-block-preview">{preview}{thinking.content.length > 80 ? '…' : ''}</span>
+                )}
+            </button>
+            {!thinking.collapsed && (
+                <div className="thinking-block-body">
+                    <pre className="thinking-block-content">{thinking.content}</pre>
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ── Tool Call Block ────────────────────────────────────────
+
+function ToolCallBlock({
+    toolCall,
+    onToggle
+}: {
+    toolCall: ToolCall
+    onToggle: () => void
+}): React.ReactElement {
+    const statusIcon = toolCall.status === 'running' ? '⟳' : toolCall.status === 'error' ? '✗' : '✓'
+    const statusClass = `tool-status-${toolCall.status}`
+
+    return (
+        <div className={`tool-call-block ${statusClass}`}>
+            <button className="tool-call-header" onClick={onToggle}>
+                <span className="tool-call-chevron">{toolCall.collapsed ? '▸' : '▾'}</span>
+                <span className={`tool-call-status-icon ${statusClass}`}>{statusIcon}</span>
+                <span className="tool-call-name">{toolCall.name}</span>
+                {toolCall.collapsed && toolCall.output && (
+                    <span className="tool-call-summary">
+                        {toolCall.output.slice(0, 60)}{toolCall.output.length > 60 ? '…' : ''}
+                    </span>
+                )}
+            </button>
+
+            {!toolCall.collapsed && (
+                <div className="tool-call-body">
+                    {toolCall.input && (
+                        <div className="tool-call-section">
+                            <div className="tool-call-section-label">Input</div>
+                            <pre className="tool-call-code">{toolCall.input}</pre>
+                        </div>
+                    )}
+                    {toolCall.output && (
+                        <div className="tool-call-section">
+                            <div className="tool-call-section-label">Output</div>
+                            <pre className="tool-call-code">{toolCall.output}</pre>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     )
 }
@@ -123,14 +243,13 @@ function MessageBubble({ message }: { message: ChatMessage }): React.ReactElemen
 // ── Markdown-lite content rendering ────────────────────────
 
 function MessageContent({ content }: { content: string }): React.ReactElement {
-    // Simple markdown: **bold**, *italic*, `code`, ```code blocks```, [links](url)
     const parts = content.split(/(```[\s\S]*?```|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g)
 
     return (
         <>
             {parts.map((part, i) => {
                 if (part.startsWith('```') && part.endsWith('```')) {
-                    const code = part.slice(3, -3).replace(/^\w+\n/, '') // strip language hint
+                    const code = part.slice(3, -3).replace(/^\w+\n/, '')
                     return <pre key={i} className="chat-code-block"><code>{code}</code></pre>
                 }
                 if (part.startsWith('`') && part.endsWith('`')) {
@@ -146,7 +265,6 @@ function MessageContent({ content }: { content: string }): React.ReactElement {
                 if (linkMatch) {
                     return <a key={i} href={linkMatch[2]} className="chat-link" target="_blank" rel="noreferrer">{linkMatch[1]}</a>
                 }
-                // Plain text — preserve newlines
                 return <span key={i}>{part.split('\n').map((line, j, arr) => (
                     <React.Fragment key={j}>
                         {line}

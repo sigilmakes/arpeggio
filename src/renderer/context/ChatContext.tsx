@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import type { WorkspaceConfig, ChannelConfig } from '@shared/types'
-import type { ChatMessage } from '@shared/message-types'
-import { createMessage, CURRENT_USER, SYSTEM_SENDER } from '@shared/message-types'
+import type { ChatMessage, ToolCall, ThinkingBlock } from '@shared/message-types'
+import { createMessage, createToolCallMessage, CURRENT_USER, SYSTEM_SENDER } from '@shared/message-types'
 import { useWorkspace } from './WorkspaceContext'
 import { useRegistry } from './ExtensionContext'
 import type { AgentConfig } from '@shared/agent-types'
+import type { AgentAdapterInstance } from '../core/registry'
 
 interface ChatContextValue {
     channels: ChannelConfig[]
@@ -15,9 +16,16 @@ interface ChatContextValue {
     createChannel: (name: string) => Promise<void>
     deleteChannel: (id: string) => Promise<void>
     renameChannel: (id: string, name: string) => Promise<void>
+    toggleToolCall: (messageId: string, toolCallId: string) => void
+    toggleAllToolCalls: () => void
+    toggleThinking: (messageId: string) => void
+    toggleAllThinking: () => void
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null)
+
+// Keep adapter instances alive between messages
+const adapterCache = new Map<string, AgentAdapterInstance>()
 
 export function ChatProvider({ children }: { children: React.ReactNode }): React.ReactElement {
     const { activeWorkspace } = useWorkspace()
@@ -41,22 +49,34 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
     }, [activeWorkspace?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
-        if (!activeWorkspace || !activeChannelId) {
+        if (!activeWorkspace || !activeChannelId || !window.electron?.chat) {
             setMessages([])
             return
         }
-        if (!window.electron?.chat) return
         window.electron.chat
             .readMessages(activeWorkspace.id, activeChannelId, 200)
             .then((msgs) => setMessages(msgs as ChatMessage[]))
             .catch(() => setMessages([]))
     }, [activeWorkspace?.id, activeChannelId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Get or create adapter for an agent
+    const getAdapter = useCallback((agent: AgentConfig): AgentAdapterInstance | null => {
+        // Check cache
+        if (adapterCache.has(agent.id)) {
+            return adapterCache.get(agent.id)!
+        }
+        const adapterEntry = registry.getAgentAdapter(agent.adapter)
+        if (!adapterEntry) return null
+        const instance = adapterEntry.factory.create(agent.config)
+        adapterCache.set(agent.id, instance)
+        return instance
+    }, [registry])
+
     const sendMessage = useCallback(
         async (content: string) => {
             if (!activeWorkspace || !activeChannelId || !content.trim() || !window.electron?.chat) return
 
-            // Handle slash commands
+            // Slash commands
             if (content.startsWith('/')) {
                 const [cmd] = content.slice(1).split(' ')
                 const sysMsg = createMessage(activeChannelId, SYSTEM_SENDER, `Unknown command: /${cmd}`, 'system')
@@ -65,51 +85,129 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
                 return
             }
 
-            // Send user message
+            // User message
             const msg = createMessage(activeChannelId, CURRENT_USER, content.trim())
             setMessages((prev) => [...prev, msg])
             await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, msg)
 
-            // Route to agents in this channel
+            // Route to agents
             const channelAgentIds = activeChannel?.agents ?? []
             const workspaceAgents: AgentConfig[] = activeWorkspace.agents ?? []
-
-            // If no agents assigned, route to ALL workspace agents
             const agentsToRoute = channelAgentIds.length > 0
                 ? workspaceAgents.filter((a) => channelAgentIds.includes(a.id))
                 : workspaceAgents
 
             for (const agent of agentsToRoute) {
-                const adapterEntry = registry.getAgentAdapter(agent.adapter)
-                if (!adapterEntry) continue
+                const adapter = getAdapter(agent)
+                if (!adapter) continue
+
+                const agentSender = { id: agent.id, name: agent.name, type: 'agent' as const }
+
+                // Create a streaming placeholder message
+                const streamId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+                const streamMsg: ChatMessage = {
+                    id: streamId,
+                    channelId: activeChannelId,
+                    sender: agentSender,
+                    timestamp: Date.now(),
+                    content: '',
+                    messageType: 'text',
+                    streaming: true
+                }
+                setMessages((prev) => [...prev, streamMsg])
 
                 try {
-                    const instance = adapterEntry.factory.create(agent.config)
-                    const response = await instance.send(content.trim())
+                    const response = await adapter.send(content.trim())
                     if (response) {
-                        const agentSender = {
-                            id: agent.id,
-                            name: agent.name,
-                            type: 'agent' as const
+                        // Check if response contains tool calls (JSON with toolCalls field)
+                        let toolCalls: ToolCall[] | undefined
+                        try {
+                            const parsed = JSON.parse(response)
+                            if (parsed.toolCalls && Array.isArray(parsed.toolCalls)) {
+                                toolCalls = parsed.toolCalls.map((tc: any) => ({
+                                    id: tc.id || `tc-${Math.random().toString(36).slice(2, 8)}`,
+                                    name: tc.name || 'unknown',
+                                    input: typeof tc.input === 'string' ? tc.input : JSON.stringify(tc.input, null, 2),
+                                    output: tc.output ? (typeof tc.output === 'string' ? tc.output : JSON.stringify(tc.output, null, 2)) : undefined,
+                                    status: 'done' as const,
+                                    collapsed: true
+                                }))
+                            }
+                        } catch { /* not JSON, that's fine */ }
+
+                        // Replace streaming placeholder with final message
+                        const finalContent = toolCalls ? (response.replace(/\{.*"toolCalls".*\}/s, '').trim() || `Used ${toolCalls.length} tool(s)`) : response
+                        const finalMsg: ChatMessage = {
+                            ...streamMsg,
+                            content: finalContent,
+                            streaming: false,
+                            toolCalls
                         }
-                        const agentMsg = createMessage(activeChannelId, agentSender, response, 'text')
-                        setMessages((prev) => [...prev, agentMsg])
-                        await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, agentMsg)
+                        setMessages((prev) => prev.map((m) => m.id === streamId ? finalMsg : m))
+                        await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, finalMsg)
+                    } else {
+                        // Remove empty streaming message
+                        setMessages((prev) => prev.filter((m) => m.id !== streamId))
                     }
                 } catch (err) {
-                    const errMsg = createMessage(
-                        activeChannelId,
-                        SYSTEM_SENDER,
-                        `${agent.name} error: ${err instanceof Error ? err.message : String(err)}`,
-                        'system'
-                    )
-                    setMessages((prev) => [...prev, errMsg])
+                    // Replace streaming placeholder with error
+                    const errContent = `Error: ${err instanceof Error ? err.message : String(err)}`
+                    setMessages((prev) => prev.map((m) =>
+                        m.id === streamId ? { ...m, content: errContent, streaming: false } : m
+                    ))
+                    const errMsg = createMessage(activeChannelId, SYSTEM_SENDER, `${agent.name}: ${errContent}`, 'system')
                     await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, errMsg)
                 }
             }
         },
-        [activeWorkspace, activeChannelId, activeChannel, registry]
+        [activeWorkspace, activeChannelId, activeChannel, getAdapter]
     )
+
+    // Toggle individual tool call collapsed state
+    const toggleToolCall = useCallback((messageId: string, toolCallId: string) => {
+        setMessages((prev) => prev.map((m) => {
+            if (m.id !== messageId || !m.toolCalls) return m
+            return {
+                ...m,
+                toolCalls: m.toolCalls.map((tc) =>
+                    tc.id === toolCallId ? { ...tc, collapsed: !tc.collapsed } : tc
+                )
+            }
+        }))
+    }, [])
+
+    // Toggle all tool calls in all messages
+    const toggleAllToolCalls = useCallback(() => {
+        setMessages((prev) => {
+            const anyExpanded = prev.some((m) => m.toolCalls?.some((tc) => !tc.collapsed))
+            return prev.map((m) => {
+                if (!m.toolCalls) return m
+                return {
+                    ...m,
+                    toolCalls: m.toolCalls.map((tc) => ({ ...tc, collapsed: anyExpanded }))
+                }
+            })
+        })
+    }, [])
+
+    // Toggle individual thinking block
+    const toggleThinking = useCallback((messageId: string) => {
+        setMessages((prev) => prev.map((m) => {
+            if (m.id !== messageId || !m.thinking) return m
+            return { ...m, thinking: { ...m.thinking, collapsed: !m.thinking.collapsed } }
+        }))
+    }, [])
+
+    // Toggle all thinking blocks
+    const toggleAllThinking = useCallback(() => {
+        setMessages((prev) => {
+            const anyExpanded = prev.some((m) => m.thinking && !m.thinking.collapsed)
+            return prev.map((m) => {
+                if (!m.thinking) return m
+                return { ...m, thinking: { ...m.thinking, collapsed: anyExpanded } }
+            })
+        })
+    }, [])
 
     const saveWorkspaceConfig = useCallback(
         async (updated: ChannelConfig[]) => {
@@ -133,7 +231,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
             setChannels(updated)
             setActiveChannelId(id)
             await saveWorkspaceConfig(updated)
-
             const sysMsg = createMessage(id, SYSTEM_SENDER, `Channel #${name} created`, 'system')
             await window.electron.chat.appendMessage(activeWorkspace.id, id, sysMsg)
             setMessages([sysMsg])
@@ -146,9 +243,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
             if (!activeWorkspace) return
             const updated = channels.filter((c) => c.id !== id)
             setChannels(updated)
-            if (activeChannelId === id) {
-                setActiveChannelId(updated[0]?.id ?? null)
-            }
+            if (activeChannelId === id) setActiveChannelId(updated[0]?.id ?? null)
             await saveWorkspaceConfig(updated)
         },
         [activeWorkspace, channels, activeChannelId, saveWorkspaceConfig]
@@ -164,6 +259,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
         [activeWorkspace, channels, saveWorkspaceConfig]
     )
 
+    // Ctrl+O to toggle all tool calls, Ctrl+T to toggle all thinking
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+                e.preventDefault()
+                toggleAllToolCalls()
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+                e.preventDefault()
+                toggleAllThinking()
+            }
+        }
+        window.addEventListener('keydown', handler)
+        return () => window.removeEventListener('keydown', handler)
+    }, [toggleAllToolCalls, toggleAllThinking])
+
     return (
         <ChatContext.Provider
             value={{
@@ -175,6 +286,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
                 createChannel,
                 deleteChannel,
                 renameChannel,
+                toggleToolCall,
+                toggleAllToolCalls,
+                toggleThinking,
+                toggleAllThinking,
             }}
         >
             {children}
