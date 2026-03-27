@@ -9,6 +9,14 @@ import { spawn, type ChildProcess } from 'child_process'
 const processes = new Map<string, ChildProcess>()
 
 export function registerSubprocessHandlers(): void {
+    // Check if an env var is set (for credential detection)
+    ipcMain.handle('env:check', (_event, varName: string) => {
+        return !!process.env[varName]
+    })
+
+    ipcMain.handle('env:get', (_event, varName: string) => {
+        return process.env[varName] || null
+    })
     ipcMain.handle('subprocess:spawn', async (_event, id: string, command: string, args: string[], cwd?: string) => {
         if (processes.has(id)) {
             throw new Error(`Process ${id} already running`)

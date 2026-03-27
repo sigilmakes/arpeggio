@@ -36,6 +36,10 @@ export interface ElectronAPI {
         show: (cwd: string, hash: string) => Promise<string>
         createBranch: (cwd: string, name: string) => Promise<string>
     }
+    env: {
+        check: (varName: string) => Promise<boolean>
+        get: (varName: string) => Promise<string | null>
+    }
     subprocess: {
         spawn: (id: string, command: string, args: string[], cwd?: string) => Promise<{ pid: number }>
         write: (id: string, data: string) => Promise<boolean>
@@ -117,6 +121,10 @@ const api: ElectronAPI = {
         checkout: (cwd: string, branch: string) => ipcRenderer.invoke('git:checkout', cwd, branch),
         show: (cwd: string, hash: string) => ipcRenderer.invoke('git:show', cwd, hash),
         createBranch: (cwd: string, name: string) => ipcRenderer.invoke('git:create-branch', cwd, name),
+    },
+    env: {
+        check: (varName: string) => ipcRenderer.invoke('env:check', varName),
+        get: (varName: string) => ipcRenderer.invoke('env:get', varName),
     },
     subprocess: {
         spawn: (id: string, command: string, args: string[], cwd?: string) =>

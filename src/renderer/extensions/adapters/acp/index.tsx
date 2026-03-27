@@ -39,14 +39,25 @@ export default function activate(app: ArpeggioAPI): void {
     app.registerAgentTemplate('claude-code', {
         displayName: 'Claude Code',
         adapter: 'acp',
-        detect: () => true,
-        defaults: {}
+        detect: async () => {
+            // Check for ANTHROPIC_API_KEY
+            if (window.electron?.env) {
+                return await window.electron.env.check('ANTHROPIC_API_KEY')
+            }
+            return true
+        },
+        defaults: { envKey: 'ANTHROPIC_API_KEY' }
     })
 
     app.registerAgentTemplate('codex', {
         displayName: 'Codex',
         adapter: 'acp',
-        detect: () => true,
-        defaults: {}
+        detect: async () => {
+            if (window.electron?.env) {
+                return await window.electron.env.check('OPENAI_API_KEY')
+            }
+            return true
+        },
+        defaults: { envKey: 'OPENAI_API_KEY' }
     })
 }
