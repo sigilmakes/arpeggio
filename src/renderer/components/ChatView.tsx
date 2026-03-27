@@ -206,6 +206,8 @@ function ToolCallBlock({
 }): React.ReactElement {
     const statusIcon = toolCall.status === 'running' ? '⟳' : toolCall.status === 'error' ? '✗' : '✓'
     const statusClass = `tool-status-${toolCall.status}`
+    const summary = formatToolSummary(toolCall)
+    const outputText = formatToolOutput(toolCall.output)
 
     return (
         <div className={`tool-call-block ${statusClass}`}>
@@ -213,31 +215,64 @@ function ToolCallBlock({
                 <span className="tool-call-chevron">{toolCall.collapsed ? '▸' : '▾'}</span>
                 <span className={`tool-call-status-icon ${statusClass}`}>{statusIcon}</span>
                 <span className="tool-call-name">{toolCall.name}</span>
-                {toolCall.collapsed && toolCall.output && (
-                    <span className="tool-call-summary">
-                        {toolCall.output.slice(0, 60)}{toolCall.output.length > 60 ? '…' : ''}
-                    </span>
-                )}
+                <span className="tool-call-summary">{summary}</span>
             </button>
 
             {!toolCall.collapsed && (
                 <div className="tool-call-body">
-                    {toolCall.input && (
-                        <div className="tool-call-section">
-                            <div className="tool-call-section-label">Input</div>
-                            <pre className="tool-call-code">{toolCall.input}</pre>
-                        </div>
+                    {outputText && (
+                        <pre className="tool-call-code">{outputText}</pre>
                     )}
-                    {toolCall.output && (
-                        <div className="tool-call-section">
-                            <div className="tool-call-section-label">Output</div>
-                            <pre className="tool-call-code">{toolCall.output}</pre>
-                        </div>
+                    {toolCall.status === 'running' && !outputText && (
+                        <div className="tool-call-running">Running…</div>
                     )}
                 </div>
             )}
         </div>
     )
+}
+
+/** Format a one-line summary from tool name + args */
+function formatToolSummary(tc: ToolCall): string {
+    try {
+        const args = JSON.parse(tc.input)
+        switch (tc.name.toLowerCase()) {
+            case 'read':
+                return args.path || ''
+            case 'write':
+                return args.path || ''
+            case 'edit':
+                return args.path || ''
+            case 'bash':
+                return (args.command || '').slice(0, 80)
+            case 'search':
+            case 'grep':
+                return args.pattern || args.query || ''
+            default:
+                // Single string arg → show it; object → show first key's value
+                if (typeof args === 'string') return args.slice(0, 80)
+                const firstVal = Object.values(args)[0]
+                return typeof firstVal === 'string' ? firstVal.slice(0, 80) : ''
+        }
+    } catch {
+        return tc.input.slice(0, 60)
+    }
+}
+
+/** Clean up tool output for display */
+function formatToolOutput(output: string | undefined): string {
+    if (!output) return ''
+    // Try to unwrap JSON-stringified text
+    try {
+        const parsed = JSON.parse(output)
+        if (typeof parsed === 'string') return parsed
+        if (parsed.content) return typeof parsed.content === 'string' ? parsed.content : JSON.stringify(parsed.content, null, 2)
+        if (parsed.result) return typeof parsed.result === 'string' ? parsed.result : JSON.stringify(parsed.result, null, 2)
+        if (parsed.output) return typeof parsed.output === 'string' ? parsed.output : JSON.stringify(parsed.output, null, 2)
+        return JSON.stringify(parsed, null, 2)
+    } catch {
+        return output
+    }
 }
 
 // ── Markdown-lite content rendering ────────────────────────

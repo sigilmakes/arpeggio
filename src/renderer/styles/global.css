@@ -1990,11 +1990,12 @@ body {
 
 .tool-call-summary {
     flex: 1;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-family: var(--font-mono);
 }
 
 .tool-call-body {
@@ -2006,17 +2007,11 @@ body {
     padding: 6px 10px;
 }
 
-.tool-call-section + .tool-call-section {
-    border-top: 1px solid var(--border-light);
-}
-
-.tool-call-section-label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+.tool-call-running {
+    padding: 8px 10px;
+    font-size: 0.78rem;
     color: var(--text-muted);
-    margin-bottom: 4px;
+    font-style: italic;
 }
 
 .tool-call-code {
