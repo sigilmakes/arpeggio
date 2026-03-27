@@ -12,6 +12,10 @@ export interface ElectronAPI {
         list: () => Promise<string[]>
         getConfig: (name: string) => Promise<unknown>
     }
+    extensions: {
+        scan: (workspacePath?: string) => Promise<unknown[]>
+        readSource: (entryPoint: string) => Promise<string>
+    }
     app: {
         getPath: (name: string) => Promise<string>
     }
@@ -43,6 +47,10 @@ const api: ElectronAPI = {
     workspace: {
         list: () => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_LIST),
         getConfig: (name: string) => ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_GET_CONFIG, name)
+    },
+    extensions: {
+        scan: (workspacePath?: string) => ipcRenderer.invoke('extension:scan', workspacePath),
+        readSource: (entryPoint: string) => ipcRenderer.invoke('extension:read-source', entryPoint)
     },
     app: {
         getPath: (name: string) => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_PATH, name)

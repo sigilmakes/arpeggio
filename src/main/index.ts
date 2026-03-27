@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
+import { registerExtensionScanner } from './extension-scanner'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -40,6 +41,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
     registerIpcHandlers()
+    registerExtensionScanner()
     createWindow()
 
     app.on('activate', () => {
