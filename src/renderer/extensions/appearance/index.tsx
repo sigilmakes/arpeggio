@@ -34,7 +34,7 @@ export default function activate(app: ArpeggioAPI): void {
         label: 'Appearance',
         icon: AppearanceIcon,
         component: AppearanceSettings,
-        order: 1
+        order: -80
     })
 
     // Register command to open settings

@@ -1132,6 +1132,88 @@ body {
 
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
+/* ── General Settings — About ────────────────────────────── */
+
+.settings-about {
+    padding: 16px;
+    margin-bottom: 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+}
+
+.settings-about-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.settings-about-version {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.settings-about-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* ── Core Extensions List ───────────────────────────────── */
+
+.core-extensions-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
+.core-extension-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.core-extension-row:last-child {
+    border-bottom: none;
+}
+
+.core-extension-row.disabled {
+    opacity: 0.5;
+}
+
+.core-extension-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.core-extension-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.core-extension-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.core-extension-toggle {
+    flex-shrink: 0;
+}
+
+.core-extension-always-on {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 /* ── Scrollbar ──────────────────────────────────────────── */
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }

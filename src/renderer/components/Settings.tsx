@@ -6,20 +6,24 @@ interface SettingsProps {
     onClose: () => void
 }
 
+// Tabs with order < 0 go in "Options", others go in "Extensions"
+const OPTIONS_THRESHOLD = 0
+
 export function Settings({ isOpen, onClose }: SettingsProps): React.ReactElement | null {
     const registry = useRegistry()
     const settingsStore = useSettingsStore()
-    const tabs = registry.getAllSettingsTabs()
-    const [activeTab, setActiveTab] = useState<string>(tabs[0]?.id ?? '')
+    const allTabs = registry.getAllSettingsTabs()
+    const [activeTab, setActiveTab] = useState<string>(allTabs[0]?.id ?? '')
 
-    // Update active tab if tabs change
+    const optionsTabs = allTabs.filter((t) => t.order < OPTIONS_THRESHOLD)
+    const extensionTabs = allTabs.filter((t) => t.order >= OPTIONS_THRESHOLD)
+
     useEffect(() => {
-        if (tabs.length > 0 && !tabs.find((t) => t.id === activeTab)) {
-            setActiveTab(tabs[0].id)
+        if (allTabs.length > 0 && !allTabs.find((t) => t.id === activeTab)) {
+            setActiveTab(allTabs[0].id)
         }
-    }, [tabs, activeTab])
+    }, [allTabs, activeTab])
 
-    // Close on Escape
     useEffect(() => {
         if (!isOpen) return
         const handler = (e: KeyboardEvent) => {
@@ -31,37 +35,61 @@ export function Settings({ isOpen, onClose }: SettingsProps): React.ReactElement
 
     if (!isOpen) return null
 
-    const activeEntry = tabs.find((t) => t.id === activeTab)
+    const activeEntry = allTabs.find((t) => t.id === activeTab)
     const ActiveComponent = activeEntry?.component
     const extensionId = activeEntry?.extensionId ?? ''
 
     return (
         <div className="settings-overlay" onClick={onClose}>
             <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
-                {/* Left nav */}
                 <nav className="settings-nav">
-                    <div className="settings-nav-section">
-                        <h3 className="settings-nav-heading">Options</h3>
-                        <ul className="settings-nav-list">
-                            {tabs.map((tab) => {
-                                const Icon = tab.icon
-                                return (
-                                    <li key={tab.id}>
-                                        <button
-                                            className={`settings-nav-item ${tab.id === activeTab ? 'active' : ''}`}
-                                            onClick={() => setActiveTab(tab.id)}
-                                        >
-                                            {Icon && <Icon className="settings-nav-icon" />}
-                                            <span>{tab.label}</span>
-                                        </button>
-                                    </li>
-                                )
-                            })}
-                        </ul>
-                    </div>
+                    {/* Options section */}
+                    {optionsTabs.length > 0 && (
+                        <div className="settings-nav-section">
+                            <h3 className="settings-nav-heading">Options</h3>
+                            <ul className="settings-nav-list">
+                                {optionsTabs.map((tab) => {
+                                    const Icon = tab.icon
+                                    return (
+                                        <li key={tab.id}>
+                                            <button
+                                                className={`settings-nav-item ${tab.id === activeTab ? 'active' : ''}`}
+                                                onClick={() => setActiveTab(tab.id)}
+                                            >
+                                                {Icon && <Icon className="settings-nav-icon" />}
+                                                <span>{tab.label}</span>
+                                            </button>
+                                        </li>
+                                    )
+                                })}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* Extension settings section */}
+                    {extensionTabs.length > 0 && (
+                        <div className="settings-nav-section">
+                            <h3 className="settings-nav-heading">Extension settings</h3>
+                            <ul className="settings-nav-list">
+                                {extensionTabs.map((tab) => {
+                                    const Icon = tab.icon
+                                    return (
+                                        <li key={tab.id}>
+                                            <button
+                                                className={`settings-nav-item ${tab.id === activeTab ? 'active' : ''}`}
+                                                onClick={() => setActiveTab(tab.id)}
+                                            >
+                                                {Icon && <Icon className="settings-nav-icon" />}
+                                                <span>{tab.label}</span>
+                                            </button>
+                                        </li>
+                                    )
+                                })}
+                            </ul>
+                        </div>
+                    )}
                 </nav>
 
-                {/* Right content */}
                 <div className="settings-content">
                     <div className="settings-content-header">
                         <h2>{activeEntry?.label ?? 'Settings'}</h2>
@@ -88,10 +116,6 @@ export function Settings({ isOpen, onClose }: SettingsProps): React.ReactElement
     )
 }
 
-/**
- * Wraps a settings tab component with scoped get/set functions.
- * Separate component so hooks work properly.
- */
 function SettingsTabWrapper({
     component: Component,
     extensionId

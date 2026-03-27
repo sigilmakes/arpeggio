@@ -1,7 +1,9 @@
 import { ExtensionLoader } from './core/extension-loader'
 
 // Built-in extension activate functions
+import generalSettingsActivate from './extensions/general-settings'
 import appearanceActivate from './extensions/appearance'
+import coreExtensionsActivate from './extensions/core-extensions'
 import fileBrowserActivate from './extensions/file-browser'
 import agentManagerActivate from './extensions/agent-manager'
 import chatChannelsActivate from './extensions/chat-channels'
@@ -13,14 +15,13 @@ import plaintextRendererActivate from './extensions/plaintext-renderer'
 
 /**
  * Register all built-in extensions.
- * These use the exact same API as user extensions.
- *
  * Order matters for file renderers — first match wins.
- * Specific renderers go first, plaintext fallback goes last.
  */
 export function initExtensions(loader: ExtensionLoader): void {
-    // Core settings
+    // Core settings (show in "Options" section)
+    loader.registerBuiltIn('arpeggio.general-settings', 'General', generalSettingsActivate)
     loader.registerBuiltIn('arpeggio.appearance', 'Appearance', appearanceActivate)
+    loader.registerBuiltIn('arpeggio.core-extensions', 'Core Extensions', coreExtensionsActivate)
 
     // Sidebar panels
     loader.registerBuiltIn('arpeggio.file-browser', 'File Browser', fileBrowserActivate)
@@ -33,6 +34,6 @@ export function initExtensions(loader: ExtensionLoader): void {
     loader.registerBuiltIn('arpeggio.image-viewer', 'Image Viewer', imageViewerActivate)
     loader.registerBuiltIn('arpeggio.pdf-viewer', 'PDF Viewer', pdfViewerActivate)
 
-    // Plaintext fallback — loaded last, lowest priority
+    // Plaintext fallback — loaded last
     loader.registerBuiltIn('arpeggio.plaintext-renderer', 'Plaintext', plaintextRendererActivate)
 }

@@ -15,7 +15,7 @@ export default function activate(app: ArpeggioAPI): void {
         label: 'Files & Links',
         icon: FileBrowserSettingsIcon,
         component: FileBrowserSettings,
-        order: 5
+        order: 3
     })
 
     app.registerCommand('files', {
