@@ -6,7 +6,7 @@ export default function activate(app: ArpeggioAPI): void {
         icon: AgentManagerIcon,
         label: 'Agents',
         component: AgentManagerPanel,
-        position: 'right',
+        position: 'left',
         order: 10
     })
 

@@ -134,10 +134,6 @@ body {
     /* no border — resize handle provides the visual edge */
 }
 
-.sidebar-right {
-    flex-direction: row-reverse;
-}
-
 /* ── Sidebar Icon Strip ─────────────────────────────────── */
 
 .sidebar-icons {
@@ -147,11 +143,6 @@ body {
     background: var(--bg-tertiary);
     flex-shrink: 0;
     border-right: 1px solid var(--border-light);
-}
-
-.sidebar-right .sidebar-icons {
-    border-right: none;
-    border-left: 1px solid var(--border-light);
 }
 
 .sidebar-icons-top {
