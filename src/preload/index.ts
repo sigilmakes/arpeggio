@@ -19,6 +19,11 @@ export interface ElectronAPI {
     app: {
         getPath: (name: string) => Promise<string>
     }
+    window: {
+        minimize: () => void
+        maximize: () => void
+        close: () => void
+    }
 }
 
 interface DirEntry {
@@ -54,6 +59,11 @@ const api: ElectronAPI = {
     },
     app: {
         getPath: (name: string) => ipcRenderer.invoke(IPC_CHANNELS.APP_GET_PATH, name)
+    },
+    window: {
+        minimize: () => ipcRenderer.send('window:minimize'),
+        maximize: () => ipcRenderer.send('window:maximize'),
+        close: () => ipcRenderer.send('window:close')
     }
 }
 
