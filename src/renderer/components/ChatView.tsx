@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useChat } from '../context/ChatContext'
-import type { ChatMessage, ToolCall, ThinkingBlock } from '@shared/message-types'
+import type { ChatMessage, ToolCall, ThinkingBlock, ContentBlock } from '@shared/message-types'
 
 export function ChatView(): React.ReactElement {
     const { activeChannel, messages, sendMessage, toggleToolCall, toggleThinking } = useChat()
@@ -120,38 +120,75 @@ function MessageBubble({
                     </span>
                 </div>
 
-                {/* Thinking block */}
-                {message.thinking && (
-                    <ThinkingBlockView thinking={message.thinking} onToggle={onToggleThinking} />
-                )}
-
-                {/* Streaming indicator */}
-                {message.streaming && !message.content && (
-                    <div className="chat-msg-streaming">
-                        <span className="chat-streaming-dot" />
-                        <span className="chat-streaming-dot" />
-                        <span className="chat-streaming-dot" />
+                {/* Ordered content blocks (interleaved text, thinking, tool calls) */}
+                {message.blocks && message.blocks.length > 0 ? (
+                    <div className="chat-msg-blocks">
+                        {message.blocks.map((block, i) => {
+                            if (block.type === 'text' && block.content) {
+                                return (
+                                    <div key={i} className="chat-msg-content">
+                                        <MessageContent content={block.content} />
+                                    </div>
+                                )
+                            }
+                            if (block.type === 'thinking') {
+                                return (
+                                    <ThinkingBlockView
+                                        key={i}
+                                        thinking={block}
+                                        onToggle={onToggleThinking}
+                                    />
+                                )
+                            }
+                            if (block.type === 'tool_call') {
+                                return (
+                                    <ToolCallBlock
+                                        key={block.id}
+                                        toolCall={block}
+                                        onToggle={() => onToggleToolCall(message.id, block.id)}
+                                    />
+                                )
+                            }
+                            return null
+                        })}
+                        {message.streaming && (
+                            <div className="chat-msg-streaming">
+                                <span className="chat-streaming-dot" />
+                                <span className="chat-streaming-dot" />
+                                <span className="chat-streaming-dot" />
+                            </div>
+                        )}
                     </div>
-                )}
-
-                {/* Message content */}
-                {message.content && (
-                    <div className="chat-msg-content">
-                        <MessageContent content={message.content} />
-                    </div>
-                )}
-
-                {/* Tool calls */}
-                {message.toolCalls && message.toolCalls.length > 0 && (
-                    <div className="chat-tool-calls">
-                        {message.toolCalls.map((tc) => (
-                            <ToolCallBlock
-                                key={tc.id}
-                                toolCall={tc}
-                                onToggle={() => onToggleToolCall(message.id, tc.id)}
-                            />
-                        ))}
-                    </div>
+                ) : (
+                    <>
+                        {/* Fallback for messages without blocks */}
+                        {message.thinking && (
+                            <ThinkingBlockView thinking={message.thinking} onToggle={onToggleThinking} />
+                        )}
+                        {message.streaming && !message.content && (
+                            <div className="chat-msg-streaming">
+                                <span className="chat-streaming-dot" />
+                                <span className="chat-streaming-dot" />
+                                <span className="chat-streaming-dot" />
+                            </div>
+                        )}
+                        {message.content && (
+                            <div className="chat-msg-content">
+                                <MessageContent content={message.content} />
+                            </div>
+                        )}
+                        {message.toolCalls && message.toolCalls.length > 0 && (
+                            <div className="chat-tool-calls">
+                                {message.toolCalls.map((tc) => (
+                                    <ToolCallBlock
+                                        key={tc.id}
+                                        toolCall={tc}
+                                        onToggle={() => onToggleToolCall(message.id, tc.id)}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
@@ -262,13 +299,21 @@ function formatToolSummary(tc: ToolCall): string {
 /** Clean up tool output for display */
 function formatToolOutput(output: string | undefined): string {
     if (!output) return ''
-    // Try to unwrap JSON-stringified text
     try {
         const parsed = JSON.parse(output)
+        // Pi returns content block arrays: [{"type":"text","text":"..."}]
+        if (Array.isArray(parsed)) {
+            return parsed
+                .filter((b: any) => b.type === 'text' && b.text)
+                .map((b: any) => b.text)
+                .join('\n') || JSON.stringify(parsed, null, 2)
+        }
         if (typeof parsed === 'string') return parsed
-        if (parsed.content) return typeof parsed.content === 'string' ? parsed.content : JSON.stringify(parsed.content, null, 2)
-        if (parsed.result) return typeof parsed.result === 'string' ? parsed.result : JSON.stringify(parsed.result, null, 2)
-        if (parsed.output) return typeof parsed.output === 'string' ? parsed.output : JSON.stringify(parsed.output, null, 2)
+        // Object with common output fields
+        if (parsed.content) return typeof parsed.content === 'string' ? parsed.content : formatToolOutput(JSON.stringify(parsed.content))
+        if (parsed.result) return typeof parsed.result === 'string' ? parsed.result : formatToolOutput(JSON.stringify(parsed.result))
+        if (parsed.output) return typeof parsed.output === 'string' ? parsed.output : formatToolOutput(JSON.stringify(parsed.output))
+        if (parsed.text) return parsed.text
         return JSON.stringify(parsed, null, 2)
     } catch {
         return output

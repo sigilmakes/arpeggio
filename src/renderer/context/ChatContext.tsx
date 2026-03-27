@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import type { WorkspaceConfig, ChannelConfig } from '@shared/types'
-import type { ChatMessage, ToolCall, ThinkingBlock } from '@shared/message-types'
+import type { ChatMessage, ToolCall, ThinkingBlock, ContentBlock } from '@shared/message-types'
 import { createMessage, createToolCallMessage, CURRENT_USER, SYSTEM_SENDER } from '@shared/message-types'
 import { useWorkspace } from './WorkspaceContext'
 import { useRegistry } from './ExtensionContext'
@@ -122,41 +122,58 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
                 setMessages((prev) => [...prev, streamMsg])
 
                 try {
-                    // Incremental streaming handler — updates message fields live
+                    // Incremental streaming — builds ordered content blocks
                     adapter.onMessage?.((raw: string) => {
                         try {
                             const evt = JSON.parse(raw)
                             setMessages((prev) => prev.map((m) => {
                                 if (m.id !== streamId) return m
-                                const updated = { ...m }
+                                const blocks = [...(m.blocks ?? [])]
 
                                 if (evt.type === 'text') {
-                                    updated.content = evt.content
+                                    // Find the last text block — only update it if nothing else
+                                    // came after it (tool call or thinking). Otherwise start a new one.
+                                    const lastIdx = blocks.length - 1
+                                    if (lastIdx >= 0 && blocks[lastIdx].type === 'text') {
+                                        blocks[lastIdx] = { type: 'text', content: evt.content }
+                                    } else {
+                                        // Text after a tool call or thinking — this is new text
+                                        // We need to figure out the delta since last text
+                                        const prevTextBlocks = blocks.filter((b) => b.type === 'text')
+                                        const prevText = prevTextBlocks.map((b) => (b as any).content).join('')
+                                        const newText = evt.content.slice(prevText.length)
+                                        if (newText) {
+                                            blocks.push({ type: 'text', content: newText })
+                                        }
+                                    }
                                 }
                                 if (evt.type === 'thinking_start') {
-                                    updated.thinking = { content: '', collapsed: false }
+                                    blocks.push({ type: 'thinking', content: '', collapsed: false })
                                 }
                                 if (evt.type === 'thinking_delta') {
-                                    updated.thinking = { ...updated.thinking, content: evt.content, collapsed: false }
+                                    const idx = blocks.findLastIndex((b) => b.type === 'thinking')
+                                    if (idx >= 0) blocks[idx] = { ...blocks[idx], type: 'thinking', content: evt.content, collapsed: false }
                                 }
                                 if (evt.type === 'thinking_end') {
-                                    updated.thinking = { content: evt.content, collapsed: true, durationMs: evt.durationMs }
+                                    const idx = blocks.findLastIndex((b) => b.type === 'thinking')
+                                    if (idx >= 0) blocks[idx] = { type: 'thinking', content: evt.content, collapsed: true, durationMs: evt.durationMs }
                                 }
                                 if (evt.type === 'tool_start') {
-                                    const tc: ToolCall = {
-                                        id: evt.id, name: evt.name,
+                                    // New text block will be created after this tool if more text comes
+                                    blocks.push({
+                                        type: 'tool_call', id: evt.id, name: evt.name,
                                         input: evt.input || '', status: 'running', collapsed: false
-                                    }
-                                    updated.toolCalls = [...(updated.toolCalls ?? []), tc]
+                                    })
                                 }
                                 if (evt.type === 'tool_end') {
-                                    updated.toolCalls = (updated.toolCalls ?? []).map((tc) =>
-                                        tc.id === evt.id
-                                            ? { ...tc, output: evt.output, status: evt.status, collapsed: true }
-                                            : tc
-                                    )
+                                    const idx = blocks.findIndex((b) => b.type === 'tool_call' && (b as any).id === evt.id)
+                                    if (idx >= 0) {
+                                        blocks[idx] = { ...blocks[idx], type: 'tool_call', output: evt.output, status: evt.status, collapsed: true } as ContentBlock
+                                    }
                                 }
-                                return updated
+
+                                const content = blocks.filter((b) => b.type === 'text').map((b) => (b as any).content).join('')
+                                return { ...m, blocks, content, streaming: true }
                             }))
                         } catch { /* not JSON */ }
                     })
@@ -186,16 +203,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
                             }
                         } catch { /* plain text */ }
 
-                        // Final update — mark streaming done, ensure all fields set
+                        // Final update — keep streamed blocks, just mark done
                         setMessages((prev) => prev.map((m) => {
                             if (m.id !== streamId) return m
                             return {
                                 ...m,
                                 content: finalContent,
                                 streaming: false,
-                                // Keep live-streamed tool calls/thinking if final doesn't have them
                                 toolCalls: toolCalls ?? m.toolCalls,
-                                thinking: thinking ?? (m.thinking ? { ...m.thinking, collapsed: true } : undefined)
+                                thinking: thinking ?? (m.thinking ? { ...m.thinking, collapsed: true } : undefined),
+                                // Keep live-built blocks if present
+                                blocks: m.blocks && m.blocks.length > 0 ? m.blocks : undefined
                             }
                         }))
 
@@ -221,46 +239,60 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
     // Toggle individual tool call collapsed state
     const toggleToolCall = useCallback((messageId: string, toolCallId: string) => {
         setMessages((prev) => prev.map((m) => {
-            if (m.id !== messageId || !m.toolCalls) return m
-            return {
-                ...m,
-                toolCalls: m.toolCalls.map((tc) =>
+            if (m.id !== messageId) return m
+            const updated = { ...m }
+            // Toggle in blocks
+            if (updated.blocks) {
+                updated.blocks = updated.blocks.map((b) =>
+                    b.type === 'tool_call' && b.id === toolCallId ? { ...b, collapsed: !b.collapsed } : b
+                )
+            }
+            // Toggle in toolCalls too
+            if (updated.toolCalls) {
+                updated.toolCalls = updated.toolCalls.map((tc) =>
                     tc.id === toolCallId ? { ...tc, collapsed: !tc.collapsed } : tc
                 )
+            }
+            return updated
+        }))
+    }, [])
+
+    const toggleAllToolCalls = useCallback(() => {
+        setMessages((prev) => {
+            const anyExpanded = prev.some((m) =>
+                m.blocks?.some((b) => b.type === 'tool_call' && !b.collapsed) ||
+                m.toolCalls?.some((tc) => !tc.collapsed)
+            )
+            return prev.map((m) => ({
+                ...m,
+                blocks: m.blocks?.map((b) => b.type === 'tool_call' ? { ...b, collapsed: anyExpanded } : b),
+                toolCalls: m.toolCalls?.map((tc) => ({ ...tc, collapsed: anyExpanded }))
+            }))
+        })
+    }, [])
+
+    const toggleThinking = useCallback((messageId: string) => {
+        setMessages((prev) => prev.map((m) => {
+            if (m.id !== messageId) return m
+            return {
+                ...m,
+                thinking: m.thinking ? { ...m.thinking, collapsed: !m.thinking.collapsed } : undefined,
+                blocks: m.blocks?.map((b) => b.type === 'thinking' ? { ...b, collapsed: !b.collapsed } : b)
             }
         }))
     }, [])
 
-    // Toggle all tool calls in all messages
-    const toggleAllToolCalls = useCallback(() => {
-        setMessages((prev) => {
-            const anyExpanded = prev.some((m) => m.toolCalls?.some((tc) => !tc.collapsed))
-            return prev.map((m) => {
-                if (!m.toolCalls) return m
-                return {
-                    ...m,
-                    toolCalls: m.toolCalls.map((tc) => ({ ...tc, collapsed: anyExpanded }))
-                }
-            })
-        })
-    }, [])
-
-    // Toggle individual thinking block
-    const toggleThinking = useCallback((messageId: string) => {
-        setMessages((prev) => prev.map((m) => {
-            if (m.id !== messageId || !m.thinking) return m
-            return { ...m, thinking: { ...m.thinking, collapsed: !m.thinking.collapsed } }
-        }))
-    }, [])
-
-    // Toggle all thinking blocks
     const toggleAllThinking = useCallback(() => {
         setMessages((prev) => {
-            const anyExpanded = prev.some((m) => m.thinking && !m.thinking.collapsed)
-            return prev.map((m) => {
-                if (!m.thinking) return m
-                return { ...m, thinking: { ...m.thinking, collapsed: anyExpanded } }
-            })
+            const anyExpanded = prev.some((m) =>
+                m.blocks?.some((b) => b.type === 'thinking' && !b.collapsed) ||
+                (m.thinking && !m.thinking.collapsed)
+            )
+            return prev.map((m) => ({
+                ...m,
+                thinking: m.thinking ? { ...m.thinking, collapsed: anyExpanded } : undefined,
+                blocks: m.blocks?.map((b) => b.type === 'thinking' ? { ...b, collapsed: anyExpanded } : b)
+            }))
         })
     }, [])
 

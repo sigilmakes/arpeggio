@@ -10,13 +10,17 @@ export interface ChatMessage {
     content: string
     messageType: MessageType
     metadata?: Record<string, unknown>
-    // Streaming support
     streaming?: boolean
-    // Tool calls
     toolCalls?: ToolCall[]
-    // Thinking blocks
     thinking?: ThinkingBlock
+    /** Ordered content blocks — text, tool calls, thinking interleaved as they appeared */
+    blocks?: ContentBlock[]
 }
+
+export type ContentBlock =
+    | { type: 'text'; content: string }
+    | { type: 'thinking'; content: string; collapsed: boolean; durationMs?: number }
+    | { type: 'tool_call'; id: string; name: string; input: string; output?: string; status: 'running' | 'done' | 'error'; collapsed: boolean }
 
 export interface MessageSender {
     id: string
