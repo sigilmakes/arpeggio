@@ -1,4 +1,5 @@
-import { app, BrowserWindow, shell, Menu, ipcMain } from 'electron'
+import { app, BrowserWindow, shell, Menu, ipcMain, protocol, net } from 'electron'
+import { pathToFileURL } from 'url'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
@@ -14,14 +15,13 @@ function createWindow(): void {
         minHeight: 600,
         show: false,
         title: 'Arpeggio',
-        frame: false,
-        titleBarStyle: 'hidden',
-        trafficLightPosition: { x: 12, y: 12 },
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
             sandbox: false,
             contextIsolation: true,
-            nodeIntegration: false
+            nodeIntegration: false,
+            plugins: true,
+            webviewTag: true
         }
     })
 
@@ -42,23 +42,33 @@ function createWindow(): void {
     }
 }
 
+// Register custom protocol for serving local files (used by PDF viewer, images)
+protocol.registerSchemesAsPrivileged([
+    {
+        scheme: 'arpeggio-file',
+        privileges: {
+            standard: true,
+            secure: true,
+            supportFetchAPI: true,
+            bypassCSP: true,
+            stream: true
+        }
+    }
+])
+
 app.whenReady().then(() => {
     // Remove the default menu bar
     Menu.setApplicationMenu(null)
 
+    // Handle arpeggio-file:// protocol — serves local files
+    protocol.handle('arpeggio-file', (request) => {
+        // URL format: arpeggio-file:///absolute/path/to/file
+        const filePath = decodeURIComponent(new URL(request.url).pathname)
+        return net.fetch(pathToFileURL(filePath).toString())
+    })
+
     registerIpcHandlers()
     registerExtensionScanner()
-
-    // Window control IPC for custom titlebar
-    ipcMain.on('window:minimize', () => mainWindow?.minimize())
-    ipcMain.on('window:maximize', () => {
-        if (mainWindow?.isMaximized()) {
-            mainWindow.unmaximize()
-        } else {
-            mainWindow?.maximize()
-        }
-    })
-    ipcMain.on('window:close', () => mainWindow?.close())
 
     createWindow()
 

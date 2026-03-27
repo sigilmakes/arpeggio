@@ -48,6 +48,7 @@
         "@prosemirror-adapter/react": "^0.5.2",
         "jiti": "^2.4.0",
         "monaco-editor": "^0.55.1",
+        "pdfjs-dist": "^5.5.207",
         "react": "^19.0.0",
         "react-dom": "^19.0.0"
     }

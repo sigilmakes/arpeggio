@@ -39,6 +39,15 @@ export function registerIpcHandlers(): void {
         }
     })
 
+    ipcMain.handle(IPC_CHANNELS.FS_READ_FILE_BASE64, async (_event, filePath: string) => {
+        try {
+            const buffer = await readFile(filePath)
+            return buffer.toString('base64')
+        } catch (error) {
+            throw new Error(`Failed to read file as base64: ${filePath}: ${error}`)
+        }
+    })
+
     ipcMain.handle(
         IPC_CHANNELS.FS_WRITE_FILE,
         async (_event, filePath: string, content: string) => {

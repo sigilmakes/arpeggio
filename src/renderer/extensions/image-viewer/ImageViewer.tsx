@@ -18,9 +18,8 @@ export function ImageViewer({ path }: FileRendererProps): React.ReactElement {
 
     useEffect(() => {
         setError(null)
-        // For images, we create a file:// URL directly
-        // In Electron, file:// protocol works in the renderer
-        setDataUrl(`file://${path}`)
+        // Use custom protocol to serve local files
+        setDataUrl(`arpeggio-file://${encodeURI(path)}`)
     }, [path])
 
     if (error) {

@@ -7,11 +7,37 @@
     overflow: hidden;
 }
 
+/* Milkdown creates a wrapper div — make sure the whole chain is scrollable */
+.markdown-renderer > div {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .markdown-renderer .milkdown {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 32px 48px;
     outline: none;
+}
+
+/* The editor div inside milkdown also needs to fill and scroll */
+.markdown-renderer .milkdown .editor {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Ensure the ProseMirror root is scrollable if milkdown doesn't wrap it */
+.markdown-renderer .ProseMirror-root,
+.markdown-renderer [data-milkdown-root] {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 /* ── Milkdown / ProseMirror Editor ──────────────────────── */

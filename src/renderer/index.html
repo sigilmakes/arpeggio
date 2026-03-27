@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
             http-equiv="Content-Security-Policy"
-            content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' file: data:; object-src file:; frame-src file:"
+            content="default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' file: data: arpeggio-file:; object-src file: arpeggio-file:; frame-src file: arpeggio-file: blob: data:; worker-src 'self' blob:"
         />
         <title>Arpeggio</title>
     </head>

@@ -129,6 +129,7 @@ export const IPC_CHANNELS = {
     // File system
     FS_READ_DIR: 'fs:read-dir',
     FS_READ_FILE: 'fs:read-file',
+    FS_READ_FILE_BASE64: 'fs:read-file-base64',
     FS_WRITE_FILE: 'fs:write-file',
     FS_STAT: 'fs:stat',
 

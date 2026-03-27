@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRegistry } from '../context/ExtensionContext'
-import { Titlebar } from './Titlebar'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { Sidebar } from './Sidebar'
 import { CenterPane } from './CenterPane'
@@ -42,9 +41,7 @@ export function AppShell(): React.ReactElement {
     }, [registry, openSettings])
 
     return (
-        <div className="app-root">
-            <Titlebar />
-            <div className="app-shell">
+        <div className="app-shell">
                 {/* Workspace switcher — narrow left strip like Discord/Obsidian vaults */}
                 <WorkspaceSwitcher />
 
@@ -84,9 +81,8 @@ export function AppShell(): React.ReactElement {
                     isOpen={rightSidebarOpen}
                 />
 
-                {/* Settings modal */}
-                <Settings isOpen={settingsOpen} onClose={closeSettings} />
-            </div>
+            {/* Settings modal */}
+            <Settings isOpen={settingsOpen} onClose={closeSettings} />
         </div>
     )
 }
