@@ -44,6 +44,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
             setMessages([])
             return
         }
+        if (!window.electron?.chat) return
         window.electron.chat
             .readMessages(activeWorkspace.id, activeChannelId, 200)
             .then((msgs) => setMessages(msgs as ChatMessage[]))
@@ -52,7 +53,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
 
     const sendMessage = useCallback(
         async (content: string) => {
-            if (!activeWorkspace || !activeChannelId || !content.trim()) return
+            if (!activeWorkspace || !activeChannelId || !content.trim() || !window.electron?.chat) return
 
             // Handle slash commands
             if (content.startsWith('/')) {
