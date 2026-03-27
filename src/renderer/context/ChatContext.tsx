@@ -117,40 +117,60 @@ export function ChatProvider({ children }: { children: React.ReactNode }): React
                 setMessages((prev) => [...prev, streamMsg])
 
                 try {
+                    // Set up streaming handler for live updates
+                    adapter.onMessage?.((raw: string) => {
+                        try {
+                            const evt = JSON.parse(raw)
+                            if (evt.type === 'streaming' && evt.content) {
+                                setMessages((prev) => prev.map((m) =>
+                                    m.id === streamId ? { ...m, content: evt.content, streaming: true } : m
+                                ))
+                            }
+                        } catch { /* not JSON streaming event */ }
+                    })
+
                     const response = await adapter.send(content.trim())
                     if (response) {
-                        // Check if response contains tool calls (JSON with toolCalls field)
+                        // Parse structured response (may contain thinking/toolCalls)
+                        let finalContent = response
                         let toolCalls: ToolCall[] | undefined
+                        let thinking: ThinkingBlock | undefined
+
                         try {
                             const parsed = JSON.parse(response)
+                            if (parsed.content) finalContent = parsed.content
                             if (parsed.toolCalls && Array.isArray(parsed.toolCalls)) {
                                 toolCalls = parsed.toolCalls.map((tc: any) => ({
                                     id: tc.id || `tc-${Math.random().toString(36).slice(2, 8)}`,
                                     name: tc.name || 'unknown',
                                     input: typeof tc.input === 'string' ? tc.input : JSON.stringify(tc.input, null, 2),
                                     output: tc.output ? (typeof tc.output === 'string' ? tc.output : JSON.stringify(tc.output, null, 2)) : undefined,
-                                    status: 'done' as const,
+                                    status: (tc.status || 'done') as 'done' | 'error' | 'running',
                                     collapsed: true
                                 }))
                             }
-                        } catch { /* not JSON, that's fine */ }
+                            if (parsed.thinking) {
+                                thinking = {
+                                    content: parsed.thinking.content || '',
+                                    collapsed: true,
+                                    durationMs: parsed.thinking.durationMs
+                                }
+                            }
+                        } catch { /* not JSON — use raw string as content */ }
 
-                        // Replace streaming placeholder with final message
-                        const finalContent = toolCalls ? (response.replace(/\{.*"toolCalls".*\}/s, '').trim() || `Used ${toolCalls.length} tool(s)`) : response
                         const finalMsg: ChatMessage = {
                             ...streamMsg,
                             content: finalContent,
                             streaming: false,
-                            toolCalls
+                            toolCalls,
+                            thinking
                         }
                         setMessages((prev) => prev.map((m) => m.id === streamId ? finalMsg : m))
                         await window.electron.chat.appendMessage(activeWorkspace.id, activeChannelId, finalMsg)
                     } else {
-                        // Remove empty streaming message
                         setMessages((prev) => prev.filter((m) => m.id !== streamId))
                     }
                 } catch (err) {
-                    // Replace streaming placeholder with error
                     const errContent = `Error: ${err instanceof Error ? err.message : String(err)}`
                     setMessages((prev) => prev.map((m) =>
                         m.id === streamId ? { ...m, content: errContent, streaming: false } : m
