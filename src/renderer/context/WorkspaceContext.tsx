@@ -12,6 +12,7 @@ interface WorkspaceContextValue {
     closeWorkspace: () => void
     createWorkspace: (name: string, projectPaths: string[]) => Promise<WorkspaceConfig>
     deleteWorkspace: (id: string) => Promise<void>
+    reloadWorkspace: () => Promise<void>
 
     // Tabs
     openTabs: OpenTab[]
@@ -103,6 +104,16 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }): 
         [workspaces] // eslint-disable-line react-hooks/exhaustive-deps
     )
 
+    const reloadWorkspace = useCallback(async () => {
+        if (!activeWorkspace) return
+        try {
+            const config = (await window.electron.workspace.getConfig(activeWorkspace.id)) as WorkspaceConfig
+            setActiveWorkspace(config)
+        } catch (error) {
+            console.error('[Workspace] Failed to reload:', error)
+        }
+    }, [activeWorkspace])
+
     const closeWorkspace = useCallback(() => {
         if (activeWorkspace) {
             saveState(activeWorkspace.id, openTabs, activeTabId)
@@ -191,6 +202,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }): 
                 closeWorkspace,
                 createWorkspace,
                 deleteWorkspace,
+                reloadWorkspace,
                 openTabs,
                 activeTabId,
                 openFile,

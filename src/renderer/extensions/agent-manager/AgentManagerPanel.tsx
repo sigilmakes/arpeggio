@@ -3,6 +3,8 @@ import { useWorkspace } from '../../context/WorkspaceContext'
 import { useRegistry } from '../../context/ExtensionContext'
 import type { AgentConfig, AgentStatus } from '@shared/agent-types'
 
+// Re-export so ChatContext picks up changes immediately
+
 export function AgentManagerIcon({ className }: { className?: string }): React.ReactElement {
     return (
         <svg className={className} width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -21,7 +23,7 @@ const STATUS_COLORS: Record<AgentStatus, string> = {
 }
 
 export function AgentManagerPanel(): React.ReactElement {
-    const { activeWorkspace } = useWorkspace()
+    const { activeWorkspace, reloadWorkspace } = useWorkspace()
     const registry = useRegistry()
     const [agents, setAgents] = useState<AgentConfig[]>([])
     const [showPicker, setShowPicker] = useState(false)
@@ -33,7 +35,7 @@ export function AgentManagerPanel(): React.ReactElement {
         setAgents(activeWorkspace?.agents ?? [])
     }, [activeWorkspace])
 
-    // Persist agents to workspace.json
+    // Persist agents to workspace.json and reload so chat picks them up
     const persistAgents = useCallback(async (updated: AgentConfig[]) => {
         if (!activeWorkspace) return
         const homePath = await window.electron.app.getPath('home')
@@ -42,7 +44,8 @@ export function AgentManagerPanel(): React.ReactElement {
             `${homePath}/.arpeggio/workspaces/${activeWorkspace.id}/workspace.json`,
             JSON.stringify(config, null, 4)
         )
-    }, [activeWorkspace])
+        await reloadWorkspace()
+    }, [activeWorkspace, reloadWorkspace])
 
     const addAgent = useCallback(async (templateId: string) => {
         const template = templates.find((t) => t.id === templateId)
