@@ -81,6 +81,25 @@ export function registerIpcHandlers(): void {
         return app.getPath(name as Parameters<typeof app.getPath>[0])
     })
 
+    // ── Window Controls ────────────────────────────────────
+
+    ipcMain.on('window:minimize', (event) => {
+        BrowserWindow.fromWebContents(event.sender)?.minimize()
+    })
+
+    ipcMain.on('window:maximize', (event) => {
+        const win = BrowserWindow.fromWebContents(event.sender)
+        if (win?.isMaximized()) {
+            win.unmaximize()
+        } else {
+            win?.maximize()
+        }
+    })
+
+    ipcMain.on('window:close', (event) => {
+        BrowserWindow.fromWebContents(event.sender)?.close()
+    })
+
     // ── Dialog ─────────────────────────────────────────────
 
     ipcMain.handle(IPC_CHANNELS.DIALOG_OPEN_DIRECTORY, async () => {
